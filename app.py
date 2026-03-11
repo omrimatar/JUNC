@@ -209,6 +209,22 @@ with st.sidebar:
 
     st.divider()
 
+    # ── Download blank template ───────────────────────────────────────────────
+    st.header("Template")
+    if st.session_state.excel_template:
+        st.download_button(
+            "⬇ Download Blank Template",
+            st.session_state.excel_template,
+            "volume_calculator.xlsx",
+            XLSX_MIME,
+            use_container_width=True,
+            help="Download the blank volume_calculator.xlsx with all instructions and formatting.",
+        )
+    else:
+        st.caption("Template file not found.")
+
+    st.divider()
+
     # ── Import from Excel ─────────────────────────────────────────────────────
     st.header("Import Excel")
     st.caption("Load an existing volume_calculator.xlsx to fill the form.")
