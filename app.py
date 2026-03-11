@@ -19,7 +19,7 @@ from additional_analysis import (
     compute_hcm_delay, compute_hcm_queue95,
     make_hcm_excel, make_queue_excel,
 )
-from pipeline import run_pipeline
+from pipeline import run_pipeline, PipelineError
 from queue_length import queue_length as _queue_length
 from ui_diagram import draw_junction
 from ui_excel import (
@@ -43,7 +43,20 @@ _MOVE_EN = {
     "TL": "Through + Left", "L": "Left",
     "RTL": "Right + Through + Left", "RL": "Right + Left",
 }
-_DIR_EN  = {"N": "North", "S": "South", "E": "East", "W": "West"}
+_DIR_EN = {"N": "North", "S": "South", "E": "East", "W": "West"}
+
+# Friendly labels for data-editor display (code → display label)
+_MOVE_LABELS = {"R": "Right Turn", "T": "Through", "L": "Left Turn"}
+_LANE_LABELS = {
+    "R":   "R  – Right only",
+    "RT":  "RT – Right + Through",
+    "T":   "T  – Through only",
+    "TL":  "TL – Through + Left",
+    "L":   "L  – Left only",
+    "RTL": "RTL – All shared",
+    "RL":  "RL – Right + Left",
+}
+_DIR_LABELS = {"N": "North", "S": "South", "E": "East", "W": "West"}
 
 # ---------------------------------------------------------------------------
 # Page config & global CSS
@@ -130,13 +143,13 @@ ver   = st.session_state.editor_version
 
 def _make_vol_df(period: str) -> pd.DataFrame:
     return pd.DataFrame(
-        {d: {m: int(state["volumes"][period][d][m]) for m in MOVEMENTS}
+        {d: {_MOVE_LABELS[m]: int(state["volumes"][period][d][m]) for m in MOVEMENTS}
          for d in DIRECTIONS},
     )
 
 def _make_lane_df(key: str) -> pd.DataFrame:
     return pd.DataFrame(
-        {d: {lt: int(state[key][d][lt]) for lt in LANE_TYPES}
+        {d: {_LANE_LABELS[lt]: int(state[key][d][lt]) for lt in LANE_TYPES}
          for d in DIRECTIONS},
     )
 
@@ -241,6 +254,10 @@ with st.sidebar:
                            use_container_width=True)
         st.download_button("⬇ Queue Lengths", queue_b,   "QueueLengths.xlsx", XLSX_MIME,
                            use_container_width=True)
+        _log = (st.session_state.extra_data or {}).get("log", "")
+        if _log.strip():
+            with st.expander("Analysis log"):
+                st.code(_log, language="")
 
 
 # ---------------------------------------------------------------------------
@@ -292,7 +309,7 @@ with col_inputs:
         ["🚗 Volumes", "🛣 Lanes", "🚫 Restrictions", "⚙ Settings"]
     )
 
-    col_cfg = {d: _int_col_cfg(d) for d in DIRECTIONS}
+    col_cfg = {d: _int_col_cfg(_DIR_LABELS[d]) for d in DIRECTIONS}
 
     # ── Volumes tab ───────────────────────────────────────────────────────────
     with tab_vol:
@@ -305,7 +322,7 @@ with col_inputs:
         )
         for d in DIRECTIONS:
             for m in MOVEMENTS:
-                val = edited_am.at[m, d]
+                val = edited_am.at[_MOVE_LABELS[m], d]
                 state["volumes"]["morning"][d][m] = 0 if pd.isna(val) else int(val)
 
         st.divider()
@@ -319,7 +336,7 @@ with col_inputs:
         )
         for d in DIRECTIONS:
             for m in MOVEMENTS:
-                val = edited_pm.at[m, d]
+                val = edited_pm.at[_MOVE_LABELS[m], d]
                 state["volumes"]["evening"][d][m] = 0 if pd.isna(val) else int(val)
 
         st.caption("R = right turn · T = through · L = left turn")
@@ -338,7 +355,7 @@ with col_inputs:
         )
         for d in DIRECTIONS:
             for lt in LANE_TYPES:
-                val = edited_lanes.at[lt, d]
+                val = edited_lanes.at[_LANE_LABELS[lt], d]
                 state["lanes"][d][lt] = 0 if pd.isna(val) else int(val)
 
         st.caption(
@@ -359,7 +376,7 @@ with col_inputs:
         )
         for d in DIRECTIONS:
             for lt in LANE_TYPES:
-                val = edited_nataz.at[lt, d]
+                val = edited_nataz.at[_LANE_LABELS[lt], d]
                 state["nataz"][d][lt] = 0 if pd.isna(val) else int(val)
 
     # ── Settings tab ─────────────────────────────────────────────────────────
@@ -515,7 +532,18 @@ if run_clicked:
                 st.session_state.hcm_delay_results    = None
                 st.session_state.hcm_queue95_results  = None
                 st.success("Analysis complete! Download results from the sidebar.")
+                log = extra_data.get("log", "")
+                if log.strip():
+                    with st.expander("Analysis log"):
+                        st.code(log, language="")
                 st.rerun()
+            except PipelineError as pe:
+                st.error(f"Analysis failed: {pe.original_exc}")
+                if pe.log.strip():
+                    with st.expander("Analysis log (output before error)"):
+                        st.code(pe.log, language="")
+                with st.expander("Full traceback"):
+                    st.exception(pe.original_exc)
             except Exception as exc:
                 st.error(f"Analysis failed: {exc}")
                 with st.expander("Full error details"):

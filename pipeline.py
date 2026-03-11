@@ -7,6 +7,8 @@ values: four finished files as bytes objects ready for download, plus an
 extra_data dict containing raw per-run data for Additional Analysis.
 """
 
+import contextlib
+import io
 import os
 import shutil
 import tempfile
@@ -21,8 +23,15 @@ from additional_analysis import make_queue_excel
 _SRC_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # Prevent concurrent runs from corrupting each other when running locally.
-# (A real multi-user deployment would use per-request isolated processes instead.)
 _pipeline_lock = threading.Lock()
+
+
+class PipelineError(Exception):
+    """Raised when the pipeline fails; carries captured stdout so the UI can show it."""
+    def __init__(self, original_exc, log: str):
+        super().__init__(str(original_exc))
+        self.original_exc = original_exc
+        self.log = log
 
 
 def run_pipeline(xlsx_file, queue_params=None):
@@ -48,6 +57,8 @@ def run_pipeline(xlsx_file, queue_params=None):
     if queue_params is None:
         queue_params = {}
 
+    captured = io.StringIO()
+
     with _pipeline_lock:
         workdir = tempfile.mkdtemp(prefix="junc_")
         orig_dir = os.getcwd()
@@ -71,20 +82,25 @@ def run_pipeline(xlsx_file, queue_params=None):
             # --- Switch to workdir so all relative-path code works ---
             os.chdir(workdir)
 
-            # --- Run the three pipeline stages ---
-            phsr_list, excel_props, car_length_dict, phaser_extra = Phaser.main(
-                queue_params=queue_params
-            )
+            # --- Run pipeline stages, capturing all print() output ---
+            with contextlib.redirect_stdout(captured):
+                phsr_list, excel_props, car_length_dict, phaser_extra = Phaser.main(
+                    queue_params=queue_params
+                )
+                junc_diagram, diagram_bytes = run_diagram_pipeline(phsr_list, excel_props)
+                junc_table,   table_bytes   = run_table_pipeline(junc_diagram)
+                id_bytes                    = run_id_pipeline(junc_table, junc_diagram)
+                queue_bytes                 = make_queue_excel(car_length_dict, queue_params)
 
-            junc_diagram, diagram_bytes = run_diagram_pipeline(phsr_list, excel_props)
-            junc_table,   table_bytes   = run_table_pipeline(junc_diagram)
-            id_bytes                    = run_id_pipeline(junc_table, junc_diagram)
-            queue_bytes                 = make_queue_excel(car_length_dict, queue_params)
-
-            extra_data = {**phaser_extra, "car_length_dict": car_length_dict}
-
+            extra_data = {
+                **phaser_extra,
+                "car_length_dict": car_length_dict,
+                "log": captured.getvalue(),
+            }
             return diagram_bytes, table_bytes, id_bytes, queue_bytes, extra_data
 
+        except Exception as exc:
+            raise PipelineError(exc, captured.getvalue()) from exc
         finally:
             os.chdir(orig_dir)
             shutil.rmtree(workdir, ignore_errors=True)
