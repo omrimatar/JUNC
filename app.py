@@ -29,8 +29,58 @@ from ui_excel import (
 
 PPTX_MIME  = "application/vnd.openxmlformats-officedocument.presentationml.presentation"
 XLSX_MIME  = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+ZIP_MIME   = "application/zip"
 _SRC_DIR   = Path(__file__).parent
 _TEMPLATE  = _SRC_DIR / "volume_calculator.xlsx"
+
+
+def _pptx_to_png_bytes(pptx_bytes: bytes) -> bytes | None:
+    """Export slide 1 of a PPTX as PNG using PowerPoint COM (Windows only).
+    Returns None silently if PowerPoint / comtypes is unavailable."""
+    import os, shutil, tempfile
+    try:
+        import comtypes.client
+    except ImportError:
+        return None
+    tmpdir = tempfile.mkdtemp(prefix="junc_png_")
+    try:
+        pptx_path = os.path.join(tmpdir, "slide.pptx")
+        png_path  = os.path.join(tmpdir, "slide.png")
+        with open(pptx_path, "wb") as fh:
+            fh.write(pptx_bytes)
+        ppt = comtypes.client.CreateObject("PowerPoint.Application")
+        ppt.Visible = 1
+        try:
+            pres = ppt.Presentations.Open(pptx_path, WithWindow=False)
+            pres.Slides[1].Export(png_path, "PNG", 1920, 1440)
+            pres.Close()
+        finally:
+            ppt.Quit()
+        if os.path.exists(png_path):
+            with open(png_path, "rb") as fh:
+                return fh.read()
+    except Exception:
+        return None
+    finally:
+        shutil.rmtree(tmpdir, ignore_errors=True)
+    return None
+
+
+def _make_full_zip(diagram_b: bytes, table_b: bytes, id_b: bytes, queue_b: bytes) -> bytes:
+    """Bundle all output files + PNG slide exports into a single ZIP."""
+    import io, zipfile
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        zf.writestr("Diagram.pptx",      diagram_b)
+        zf.writestr("Table.pptx",        table_b)
+        zf.writestr("ID.pptx",           id_b)
+        zf.writestr("QueueLengths.xlsx", queue_b)
+        for label, data in (("Diagram", diagram_b), ("Table", table_b)):
+            png = _pptx_to_png_bytes(data)
+            if png:
+                zf.writestr(f"{label}.png", png)
+    buf.seek(0)
+    return buf.getvalue()
 
 _QUEUE_NAMES = [
     "NR_length",  "NRT_length", "NT_length",  "NTL_length", "NL_length",  "NRTL_length", "NRL_length",
@@ -132,6 +182,9 @@ if "auto_run" not in st.session_state:
 
 if "last_imported_file_id" not in st.session_state:
     st.session_state.last_imported_file_id = None
+
+if "full_zip" not in st.session_state:
+    st.session_state.full_zip = None
 
 if "excel_template" not in st.session_state:
     if _TEMPLATE.exists():
@@ -291,6 +344,21 @@ with st.sidebar:
                            use_container_width=True)
         st.download_button("⬇ Queue Lengths", queue_b,   "QueueLengths.xlsx", XLSX_MIME,
                            use_container_width=True)
+        st.divider()
+        if st.session_state.full_zip is None:
+            if st.button("📦 Prepare Full Analysis ZIP", use_container_width=True,
+                         help="Exports Diagram + Table to PNG and bundles all files into a ZIP."):
+                with st.spinner("Exporting slides to PNG…"):
+                    st.session_state.full_zip = _make_full_zip(diagram_b, table_b, id_b, queue_b)
+                st.rerun()
+        else:
+            st.download_button(
+                "⬇ Full Analysis (ZIP)",
+                st.session_state.full_zip,
+                "JUNC_Full_Analysis.zip",
+                ZIP_MIME,
+                use_container_width=True,
+            )
         _log = (st.session_state.extra_data or {}).get("log", "")
         if _log.strip():
             with st.expander("Analysis log"):
@@ -569,6 +637,7 @@ if run_clicked or st.session_state.auto_run:
                 st.session_state.queue_recalc         = None
                 st.session_state.hcm_delay_results    = None
                 st.session_state.hcm_queue95_results  = None
+                st.session_state.full_zip             = None
                 st.success("Analysis complete! Download results from the sidebar.")
                 log = extra_data.get("log", "")
                 if log.strip():
