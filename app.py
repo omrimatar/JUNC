@@ -164,16 +164,31 @@ with st.sidebar:
 
     # ── Fonts ────────────────────────────────────────────────────────────────
     st.header("Fonts")
+    st.caption(
+        "These fonts must be installed on your PC to correctly view "
+        "the downloaded PPTX files."
+    )
+    st.markdown(
+        "**1. Traffic Arrows** (phase arrows)  \n"
+        "[⬇ Download TrafficArrows.ttf]"
+        "(https://github.com/omrimatar/JUNC/raw/master/fonts/TrafficArrows.ttf)"
+    )
+    st.markdown(
+        "**2. Assistant** (Hebrew text)  \n"
+        "[⬇ Download from Google Fonts](https://fonts.google.com/specimen/Assistant)"
+    )
+    st.caption("To install: double-click the .ttf file → click Install → restart PowerPoint.")
+
     try:
         from font_installer import get_status, install_fonts
         font_status = get_status()
         all_ok = all(font_status.values())
 
         if all_ok:
-            st.success("All fonts installed")
+            st.success("✅ All fonts installed — PPTX files will display correctly on this PC.")
         else:
             missing = [n for n, ok in font_status.items() if not ok]
-            st.warning(f"{len(missing)} font(s) missing")
+            st.warning(f"{len(missing)} font(s) missing on this PC")
             for name in missing:
                 st.caption(f"• {name}")
 
@@ -190,7 +205,7 @@ with st.sidebar:
                 st.info("Restart PowerPoint if it was open.")
                 st.rerun()
     except ImportError:
-        st.caption("Font installer not available on this platform.")
+        pass   # cloud/Linux — download links above are sufficient
     except Exception as exc:
         st.caption(f"Font check error: {exc}")
 
