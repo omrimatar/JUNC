@@ -242,7 +242,24 @@ class Diagram:
 
         street_placeholders = {"NORTH_NAME": self.NO.NAME, "SOUTH_NAME": self.SO.NAME, "EAST_NAME": self.EA.NAME,
                                "WEST_NAME": self.WE.NAME, "RAKAL": self.LRT_INF.LRT_Dir}
-        lrt_type_to_string = {0: "", 1: "צפון ⇋ דרום", 2: "מזרח ⇋ מערב", 3: "צפ ⇋ דר, מז ⇋ מע"}
+        lrt_type_to_string = {
+            0:  "",
+            1:  "צפון ⇋ דרום",
+            2:  "מזרח ⇋ מערב",
+            3:  "צפ ⇋ דר, מז ⇋ מע",
+            4:  "צפון ⇋ מזרח",
+            5:  "דרום ⇋ מזרח",
+            6:  "צפון ⇋ מערב",
+            7:  "דרום ⇋ מערב",
+            8:  "צפון, מז ⇋ מע",
+            9:  "דרום, מז ⇋ מע",
+            10: "צפ ⇋ דר, מזרח",
+            11: "צפ ⇋ דר, מערב",
+            12: "צפון",
+            13: "דרום",
+            14: "מזרח",
+            15: "מערב",
+        }
         for slide in pres.slides:
             for shape in slide.shapes:
                 if shape.name in street_placeholders.keys():

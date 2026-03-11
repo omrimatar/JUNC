@@ -412,21 +412,6 @@ with col_inputs:
                             key="chk_img6")
             )
 
-            st.divider()
-            st.markdown("**Optimization mode**")
-            state["instructions"]["optimize"] = int(
-                st.checkbox(
-                    "Exhaustive lane optimization",
-                    value=bool(state["instructions"].get("optimize")),
-                    key="chk_optimize",
-                    help=(
-                        "When enabled, the solver searches all feasible lane "
-                        "configurations and writes the optimal lane split back to "
-                        "the Excel sheet. Disable for a standard single-configuration check."
-                    ),
-                )
-            )
-
         with s_right:
             st.markdown("**LRT settings**")
             lrt_on = st.checkbox(
@@ -468,16 +453,27 @@ with col_inputs:
                     value=float(state["rakal"].get("mcu") or 1.0),
                     step=0.125, format="%.3f", key="lrt_mcu",
                 )
-                state["instructions"]["lrt_orig_ns"] = st.number_input(
-                    "LRT origin arm N-S", min_value=0,
-                    value=int(state["instructions"].get("lrt_orig_ns") or 0),
-                    step=1, key="lrt_ons",
-                )
-                state["instructions"]["lrt_orig_ew"] = st.number_input(
-                    "LRT origin arm E-W", min_value=0,
-                    value=int(state["instructions"].get("lrt_orig_ew") or 0),
-                    step=1, key="lrt_oew",
-                )
+                st.markdown("**LRT arms at junction**")
+                # Encoding: 0=none, 1=both arms on axis, 2=first arm only, 3=second arm only
+                _ns = int(state["instructions"].get("lrt_orig_ns") or 0)
+                _ew = int(state["instructions"].get("lrt_orig_ew") or 0)
+                _n = _ns in (1, 2)
+                _s = _ns in (1, 3)
+                _e = _ew in (1, 2)
+                _w = _ew in (1, 3)
+                chk_n = st.checkbox("North arm", value=_n, key="lrt_arm_n")
+                chk_s = st.checkbox("South arm", value=_s, key="lrt_arm_s")
+                chk_e = st.checkbox("East arm",  value=_e, key="lrt_arm_e")
+                chk_w = st.checkbox("West arm",  value=_w, key="lrt_arm_w")
+                # Encode back: 1=both, 2=N/E only, 3=S/W only, 0=none
+                if chk_n and chk_s:   state["instructions"]["lrt_orig_ns"] = 1
+                elif chk_n:           state["instructions"]["lrt_orig_ns"] = 2
+                elif chk_s:           state["instructions"]["lrt_orig_ns"] = 3
+                else:                 state["instructions"]["lrt_orig_ns"] = 0
+                if chk_e and chk_w:   state["instructions"]["lrt_orig_ew"] = 1
+                elif chk_e:           state["instructions"]["lrt_orig_ew"] = 2
+                elif chk_w:           state["instructions"]["lrt_orig_ew"] = 3
+                else:                 state["instructions"]["lrt_orig_ew"] = 0
 
             st.divider()
             st.markdown("**Street names** (Hebrew supported)")

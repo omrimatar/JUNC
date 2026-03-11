@@ -107,5 +107,32 @@ class LRT_Info:
         2 = East & West
         3 = North, South, East & West
         """
-        lrt_options = {'[0, 0]': 0, '[1, 0]': 1, '[0, 1]': 2, '[1, 1]': 3}
-        self.LRT_Dir = lrt_options[str(self.LRT_Orig)]
+        # lrt_orig_ns / lrt_orig_ew encoding:
+        #   0 = no LRT on this axis
+        #   1 = both arms active (legacy: full N-S or E-W axis)
+        #   2 = first arm only  (N for ns, E for ew)
+        #   3 = second arm only (S for ns, W for ew)
+        ns, ew = self.LRT_Orig
+        n = ns in (1, 2)
+        s = ns in (1, 3)
+        e = ew in (1, 2)
+        w = ew in (1, 3)
+        arm_map = {
+            (False, False, False, False):  0,  # no LRT
+            (True,  True,  False, False):  1,  # N-S straight
+            (False, False, True,  True ):  2,  # E-W straight
+            (True,  True,  True,  True ):  3,  # all four arms
+            (True,  False, True,  False):  4,  # N-E corner
+            (False, True,  True,  False):  5,  # S-E corner
+            (True,  False, False, True ):  6,  # N-W corner
+            (False, True,  False, True ):  7,  # S-W corner
+            (True,  False, True,  True ):  8,  # N + E-W
+            (False, True,  True,  True ):  9,  # S + E-W
+            (True,  True,  True,  False): 10,  # N-S + E
+            (True,  True,  False, True ): 11,  # N-S + W
+            (True,  False, False, False): 12,  # N only
+            (False, True,  False, False): 13,  # S only
+            (False, False, True,  False): 14,  # E only
+            (False, False, False, True ): 15,  # W only
+        }
+        self.LRT_Dir = arm_map.get((n, s, e, w), 0)
