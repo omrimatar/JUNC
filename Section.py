@@ -1,4 +1,5 @@
 from Phases import *
+from constants import LOS_C_THRESHOLD, LOS_D_THRESHOLD
 
 
 class Section:
@@ -128,9 +129,9 @@ class Section:
 
     def set_los(self):
         """The method converts the VOC to a level of service character."""
-        if self.VOC < 0.8:
+        if self.VOC < LOS_C_THRESHOLD:
             self.LOS = "C"
-        elif self.VOC < 0.9:
+        elif self.VOC < LOS_D_THRESHOLD:
             self.LOS = "D"
         elif self.VOC < 1:
             self.LOS = "E"

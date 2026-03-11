@@ -509,13 +509,7 @@ def b_optimization(volume,lanes,nataz,solver):
 
     #  הגדרת  פונקציית המטרה של הזרוע כסכום כל המשתנים המדומים יהיה נקודת האופטימום שמייצגת את היותם קרובים ככל הניתן
 
-    inner_vars_list = []
-    for d in DIRECTIONS:
-        size = len(inner_vars[d])
-        i_list = ["inner_vars['"+d+"']["+str(i)+"]" for i in range(len(inner_vars[d]))]
-        inner_vars_list.extend(i_list)
-    target_function = 'prob += ' + '+'.join(inner_vars_list)
-    exec(target_function)
+    prob += sum(var for d in DIRECTIONS for var in inner_vars[d])
 
 
     #  פתרון והדפסה

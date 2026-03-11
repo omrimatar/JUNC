@@ -1,5 +1,7 @@
 # Version date 8/6/2021
 
+import os
+from io import BytesIO
 import Phaser
 from Directions import *
 from General_Info import *
@@ -10,6 +12,8 @@ from pptx.dml.color import RGBColor
 from pptx.enum.text import MSO_AUTO_SIZE
 from pptx.enum.lang import MSO_LANGUAGE_ID
 from pptx.util import Pt
+
+_JUNC_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
 class Diagram:
@@ -378,7 +382,7 @@ class Diagram:
         """the method is being called when the junction has three directions; It checks if the fourth direction is a
         oneway direction. If it is, it adds a matching oneway road to the final diagram.  """
         opt_oneway = self.G_INF.ONEWAY
-        src = os.getcwd() + r"\Oneway_template\\"
+        src = os.path.join(_JUNC_DIR, "Oneway_template") + os.sep
         type_dict = {2: "NoWest", 3: "NoNorth", 4: "NoEast", 5: "NoSouth"}
         OneWay = ""
         if type_dict[opt_oneway] == "NoNorth":
@@ -417,29 +421,30 @@ class Diagram:
                 slide.shapes.add_picture(img_path, oneway_prop[OneWay][0], oneway_prop[OneWay][1])
 
 
-rearrange_folders()
-new_phaser_list, new_excel_properties = Phaser.main()
-JUNC_Diagram = Diagram(new_phaser_list, new_excel_properties)
-
-print("-----")
-JUNC_Diagram.push_arr()
-JUNC_Diagram.push_vol()
-JUNC_Diagram.push_general_info()
-JUNC_Diagram.push_lrt_info()
-JUNC_Diagram.push_street_names()
-
-create_new_diagram_template_file()
-
-prs = Presentation("Diagram_new_template.pptx")
-del_slides(prs, JUNC_Diagram.get_type_of_junc_for_choosing_slide())
-prs = Presentation("Del_Diagram.pptx")
-JUNC_Diagram.add_street_name_and_lrt(prs)
-prs = Presentation("Street_Diagram.pptx")
-JUNC_Diagram.add_morning_volumes(prs)
-prs = Presentation("Morn_Diagram.pptx")
-JUNC_Diagram.add_evening_volumes(prs)
-prs = Presentation("Eve_Diagram.pptx")
-JUNC_Diagram.add_direction_arrows(prs)
-prs = Presentation("Dirc_Diagram.pptx")
-save_diagram(prs)
-delete_temp_diagram_pres()
+def run_diagram_pipeline(phsr_list, excel_properties):
+    """Build the Diagram PPTX. Returns (junc_diagram, pptx_bytes)."""
+    junc_diagram = Diagram(phsr_list, excel_properties)
+    junc_diagram.push_arr()
+    junc_diagram.push_vol()
+    junc_diagram.push_general_info()
+    junc_diagram.push_lrt_info()
+    junc_diagram.push_street_names()
+    try:
+        create_new_diagram_template_file()
+        prs = Presentation("Diagram_new_template.pptx")
+        del_slides(prs, junc_diagram.get_type_of_junc_for_choosing_slide())
+        prs = Presentation("Del_Diagram.pptx")
+        junc_diagram.add_street_name_and_lrt(prs)
+        prs = Presentation("Street_Diagram.pptx")
+        junc_diagram.add_morning_volumes(prs)
+        prs = Presentation("Morn_Diagram.pptx")
+        junc_diagram.add_evening_volumes(prs)
+        prs = Presentation("Eve_Diagram.pptx")
+        junc_diagram.add_direction_arrows(prs)
+        prs = Presentation("Dirc_Diagram.pptx")
+        buf = BytesIO()
+        prs.save(buf)
+        buf.seek(0)
+        return junc_diagram, buf.getvalue()
+    finally:
+        delete_temp_diagram_pres()

@@ -1,3 +1,6 @@
+from constants import DEFAULT_CYCLE_TIME
+
+
 class LRT_Info:
     """
       A class used to represent the LRT info of the junction
@@ -5,7 +8,7 @@ class LRT_Info:
 
     def __init__(self):
         self.__LRT_Dir = 0  # 0= no LRT, 1 = North & South, 2 = East & West , 3 = North, South, East & West
-        self.__cycle_time = 120
+        self.__cycle_time = DEFAULT_CYCLE_TIME
         self.__train_lost_time = 25
         self.__train_headway = 4
         self.__MCU = 1

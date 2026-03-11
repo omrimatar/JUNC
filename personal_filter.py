@@ -1,4 +1,6 @@
 #adjusted variables- read if you like dont change
+from constants import MAX_LANES_PER_DIRECTION
+
 
 def personal_filter(m):
         Nr = m[0]
@@ -45,23 +47,23 @@ def personal_filter(m):
 #(DIRECTION)OUT represents movement coming to  that direction and out of the intersecection
 
         if (1
-        and Nr<50
-        and Nin <= 50
-        and Sin <= 50
-        and Ein <= 50
-        and Win <=50
+        and Nr < MAX_LANES_PER_DIRECTION
+        and Nin <= MAX_LANES_PER_DIRECTION
+        and Sin <= MAX_LANES_PER_DIRECTION
+        and Ein <= MAX_LANES_PER_DIRECTION
+        and Win <= MAX_LANES_PER_DIRECTION
 
-        and Nout <= 50
-        and Sout <= 50
-        and Eout <= 50
-        and Wout <= 50
+        and Nout <= MAX_LANES_PER_DIRECTION
+        and Sout <= MAX_LANES_PER_DIRECTION
+        and Eout <= MAX_LANES_PER_DIRECTION
+        and Wout <= MAX_LANES_PER_DIRECTION
 
-        and St<=50
-        and Wl<=50
-        and Et<=50
-        and Nr<=50
-        and Nl+Nrl+Nrtl<=50
-        and Nr+Nrl+Nrtl<=50
+        and St<= MAX_LANES_PER_DIRECTION
+        and Wl<= MAX_LANES_PER_DIRECTION
+        and Et<= MAX_LANES_PER_DIRECTION
+        and Nr<= MAX_LANES_PER_DIRECTION
+        and Nl+Nrl+Nrtl<= MAX_LANES_PER_DIRECTION
+        and Nr+Nrl+Nrtl<= MAX_LANES_PER_DIRECTION
         and 1):
             return True
 

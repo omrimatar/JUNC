@@ -1,5 +1,11 @@
+import time
+from io import BytesIO
 from Building_ID import *
+from pptx import Presentation
 from pptx.enum.text import MSO_AUTO_SIZE
+from pptx.enum.lang import MSO_LANGUAGE_ID
+from pptx.dml.color import RGBColor
+from pptx.util import Pt
 
 
 class ID:
@@ -144,13 +150,19 @@ class ID:
         pres.save("id_info.pptx")
 
 
-new_info = JUNC_Table.phsrlst.ID_INFO
-JUNC_ID = ID(new_info)
-JUNC_ID.push_id_info(JUNC_Diagram)
-create_new_id_templates_file()
-prs = Presentation("id_template.pptx")
-JUNC_ID.add_info(prs)
-prs = Presentation("id_info.pptx")
-save_id(prs)
-delete_temp_id_pres()
-organize_final_folder(JUNC_Table.IMG)
+def run_id_pipeline(junc_table, junc_diagram):
+    """Build the ID PPTX. Returns pptx_bytes."""
+    new_info = junc_table.phsrlst.ID_INFO
+    junc_id = ID(new_info)
+    junc_id.push_id_info(junc_diagram)
+    try:
+        create_new_id_templates_file()
+        prs = Presentation("id_template.pptx")
+        junc_id.add_info(prs)
+        prs = Presentation("id_info.pptx")
+        buf = BytesIO()
+        prs.save(buf)
+        buf.seek(0)
+        return buf.getvalue()
+    finally:
+        delete_temp_id_pres()

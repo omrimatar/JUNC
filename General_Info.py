@@ -1,10 +1,13 @@
+from constants import DEFAULT_CAPACITY
+
+
 class General_Info:
     """
       A class used to represent the  general info of the junc
     """
 
     def __init__(self):
-        self.__Capacity = 1800
+        self.__Capacity = DEFAULT_CAPACITY
         self.__NLSL_Allowed = False
         self.__ELWL_Allowed = False
         self.__5th_Image = False

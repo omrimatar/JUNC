@@ -1,5 +1,6 @@
 import openpyxl as xl
-from b_optimiztion import b_optimization
+from constants import LOS_C_THRESHOLD, LOS_D_THRESHOLD, MAX_LANES_PER_DIRECTION
+from b_optimization import b_optimization
 from c_optimization import c_optimization
 from queue_length import queue_length
 
@@ -7,6 +8,7 @@ from personal_filter import personal_filter
 from rakal_capacity import rakal_capacity
 import timeit
 import ctypes
+import shutil
 # import pulp as pl
 # import os
 # import pprint
@@ -15,15 +17,18 @@ import ctypes
 
 # לשאלות ותמיכה טכנית ניתן לפנות לעמרי מטר omrimatar@gmail.com
 
-def main():
+def main(queue_params=None):
     cwd = 'os.getcwd()'  # solverdir = r'cbc-windeps-win64-msvc16-mtd\bin\cbc.exe'  # extracted and renamed CBC solver binary
     # solverdir = os.path.join(cwd, solverdir)
     # solver = pl.COIN_CMD(solverdir)
 
+    if queue_params is None:
+        queue_params = {}
     solver = 1
     start = timeit.default_timer()
     run = 0
     junc_list = []
+    _car_sum_am = _car_sum_pm = _pulp_vars_am = _pulp_vars_pm = None
     excel_properties_list= []
     queue_max_list = [0] * 28
     # poisson_cars = [0] * 12
@@ -67,13 +72,19 @@ def main():
                 row = str(i + 6)
                 ws2[namesA + row] = write_names[i]
                 ws2[valuesB + row] = write_values[i]
-            try:
-                wb2.save('OUTPUT.xlsx')
-            except PermissionError:
-                MessageBox = ctypes.windll.user32.MessageBoxW
-                MessageBox(None, 'ERROR: close excel output file', 'Phaser massage', 0)
-
-                exit()
+            MessageBox = ctypes.windll.user32.MessageBoxW
+            MB_RETRYCANCEL = 5
+            IDRETRY = 4
+            while True:
+                try:
+                    wb2.save('OUTPUT.xlsx')
+                    break
+                except PermissionError:
+                    result = MessageBox(None,
+                                        'OUTPUT.xlsx is open in Excel.\nPlease close it and press Retry.',
+                                        'Phaser error', MB_RETRYCANCEL)
+                    if result != IDRETRY:
+                        exit()
 
             wb2.close()
 
@@ -162,6 +173,7 @@ def main():
 
 
         def update_excel(optimal_lanes, min_v_c):
+            shutil.copy2('volume_calculator.xlsx', 'volume_calculator_backup.xlsx')
             for i in range(4):
                 for j in range(7):
                     ws.cell(row=8, column=3 + 8 * i + j).value = optimal_lanes[i * 7 + j]
@@ -230,8 +242,8 @@ def main():
                 Srl = lst[13]
                 # סינון המערך לאפשרויות מתאימות בלבד. יש להחליף בעתיד את הערכים 50 בערכים שאובים מאקסל.
 
-                if Nr + Nrt + Nt + Ntl + Nl + Nrtl + Nrl <= 50 \
-                        and Sr + Srt + St + Stl + Sl + Srtl + Srl <= 50 \
+                if Nr + Nrt + Nt + Ntl + Nl + Nrtl + Nrl <= MAX_LANES_PER_DIRECTION \
+                        and Sr + Srt + St + Stl + Sl + Srtl + Srl <= MAX_LANES_PER_DIRECTION \
                         and Nrt + Nrl + Nrtl <= 1 \
                         and Srt + Srl + Srtl <= 1 \
                         and Ntl + Nrl + Nrtl <= 1 \
@@ -287,8 +299,8 @@ def main():
                 Wrl = lst[13]
                 # סינון המערך לאפשרויות מתאימות בלבד. יש להחליף בעתיד את הערכים 50 בערכים שאובים מאקסל.
 
-                if Er + Ert + Et + Etl + El + Ertl + Erl <= 50 \
-                        and Wr + Wrt + Wt + Wtl + Wl + Wrtl + Wrl <= 50 \
+                if Er + Ert + Et + Etl + El + Ertl + Erl <= MAX_LANES_PER_DIRECTION \
+                        and Wr + Wrt + Wt + Wtl + Wl + Wrtl + Wrl <= MAX_LANES_PER_DIRECTION \
                         and Ert + Erl + Ertl <= 1 \
                         and Wrt + Wrl + Wrtl <= 1 \
                         and Etl + Erl + Ertl <= 1 \
@@ -353,7 +365,13 @@ def main():
             real_capacity = instructions[0]
             car_sum = b_optimization(volume, lanes, nataz, solver)
             v_c, sum_of_images, current_pulp_vars, images_values = c_optimization(car_sum, instructions, nataz, solver)
-            queue_list = queue_length(car_sum, current_pulp_vars)
+            queue_list = queue_length(car_sum, current_pulp_vars, **queue_params)
+            if run == 0:
+                _car_sum_am = list(car_sum)
+                _pulp_vars_am = dict(current_pulp_vars)
+            else:
+                _car_sum_pm = list(car_sum)
+                _pulp_vars_pm = dict(current_pulp_vars)
             if rakal_instructions[0] == 1:
                 v_c, real_capacity = rakal_capacity(instructions, rakal_instructions, images_values)
             write_to_excel(v_c, sum_of_images, current_pulp_vars, run, real_capacity)
@@ -362,9 +380,9 @@ def main():
                     print(keys, '=', values)
             # print_dict(current_pulp_vars)
 
-            if v_c < 0.8:
+            if v_c < LOS_C_THRESHOLD:
                 LOS = "C"
-            elif v_c < 0.9:
+            elif v_c < LOS_D_THRESHOLD:
                 LOS = "D"
             elif v_c < 1:
                 LOS = "E"
@@ -426,7 +444,13 @@ def main():
     # for i in range(2):
     #    print ('i = ', i)
 
-    return (junc_list,excel_properties_list)
+    extra_data = {
+        "car_sum_am":    _car_sum_am,
+        "car_sum_pm":    _car_sum_pm,
+        "pulp_vars_am":  _pulp_vars_am,
+        "pulp_vars_pm":  _pulp_vars_pm,
+    }
+    return (junc_list, excel_properties_list, car_length_dict, extra_data)
 
 
 if __name__ == "__main__":

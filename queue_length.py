@@ -10,17 +10,15 @@
 
 
 
-def queue_length( car_sum,current_pulp_vars):
+def queue_length(car_sum, current_pulp_vars,
+                 discard_green_time=False,
+                 basic_lost_capacity=200,
+                 poisson=0.95,
+                 l=7,
+                 phf=0.9,
+                 cycle_time=120):
 
     import math
-
-    #discard_green_time=False
-    discard_green_time=True
-    basic_lost_capacity= 200
-    poisson=0.95
-    l=7
-    phf=0.9
-    cycle_time=120
 
 
     queue_list=[]

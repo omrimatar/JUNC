@@ -1,5 +1,9 @@
+from io import BytesIO
 from Building_Table import *
 from Section import *
+from pptx import Presentation
+from pptx.dml.color import RGBColor
+from pptx.util import Pt
 
 
 class Table:
@@ -123,17 +127,17 @@ class Table:
                 img_counter = temp_count
         self.IMG = img_counter
 
-    def set_lrt_status(self):
+    def set_lrt_status(self, junc_diagram):
         """Sets the IS_LRT property, based on the info about it in Diagram"""
-        if JUNC_Diagram.LRT_INF.LRT_Dir > 0:
+        if junc_diagram.LRT_INF.LRT_Dir > 0:
             self.IS_LRT = True
         else:
             self.IS_LRT = False
 
-    def get_type_of_table_for_choosing_slide(self):
+    def get_type_of_table_for_choosing_slide(self, junc_diagram):
         """The method chooses the type of table based on the info about num of images and LRT status"""
         self.deter_num_of_img()
-        self.set_lrt_status()
+        self.set_lrt_status(junc_diagram)
         table_slide_from_images = self.IMG - 1
         if self.IS_LRT:
             lrt_type = 1
@@ -199,7 +203,7 @@ class Table:
         for one of the images. Before adding the arrows, it organizes the arrows in the logical order using
         organize_arrows_order_for_table function.
         """
-        time_self = [JUNC_Table.MOR, JUNC_Table.EVE]
+        time_self = [self.MOR, self.EVE]
         for chosen_time in time_self:
             i = 0
             imgs_for_time = [chosen_time.A, chosen_time.B, chosen_time.C, chosen_time.D, chosen_time.E, chosen_time.F]
@@ -236,21 +240,26 @@ class Table:
         pres.save("Dirc_Table.pptx")
 
 
-JUNC_Table = Table(JUNC_Diagram.phsr_lst)
-
-JUNC_Table.push_deter_vol()
-JUNC_Table.push_section_info()
-JUNC_Table.push_arrow_imgs()
-
-create_new_table_templates_file()
-prs = Presentation("Table_new_template.pptx")
-del_slides_table(prs, JUNC_Table.get_type_of_table_for_choosing_slide())
-prs = Presentation("Del_Table.pptx")
-JUNC_Table.add_deter_volumes(prs)
-prs = Presentation("Vol_Table.pptx")
-JUNC_Table.add_table_info(prs)
-prs = Presentation("Info_Table.pptx")
-JUNC_Table.add_table_arrows(JUNC_Diagram, prs)
-prs = Presentation("Dirc_Table.pptx")
-save_table(prs)
-delete_temp_table_pres()
+def run_table_pipeline(junc_diagram):
+    """Build the Table PPTX. Returns (junc_table, pptx_bytes)."""
+    junc_table = Table(junc_diagram.phsr_lst)
+    junc_table.push_deter_vol()
+    junc_table.push_section_info()
+    junc_table.push_arrow_imgs()
+    try:
+        create_new_table_templates_file()
+        prs = Presentation("Table_new_template.pptx")
+        del_slides_table(prs, junc_table.get_type_of_table_for_choosing_slide(junc_diagram))
+        prs = Presentation("Del_Table.pptx")
+        junc_table.add_deter_volumes(prs)
+        prs = Presentation("Vol_Table.pptx")
+        junc_table.add_table_info(prs)
+        prs = Presentation("Info_Table.pptx")
+        junc_table.add_table_arrows(junc_diagram, prs)
+        prs = Presentation("Dirc_Table.pptx")
+        buf = BytesIO()
+        prs.save(buf)
+        buf.seek(0)
+        return junc_table, buf.getvalue()
+    finally:
+        delete_temp_table_pres()
