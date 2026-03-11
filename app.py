@@ -127,6 +127,9 @@ if "hcm_queue95_results" not in st.session_state:
 if "editor_version" not in st.session_state:
     st.session_state.editor_version = 0
 
+if "auto_run" not in st.session_state:
+    st.session_state.auto_run = False
+
 if "excel_template" not in st.session_state:
     if _TEMPLATE.exists():
         st.session_state.excel_template = _TEMPLATE.read_bytes()
@@ -252,7 +255,7 @@ with st.sidebar:
                 st.session_state.junc_state = new_state
                 state = new_state
                 st.session_state.editor_version += 1
-                st.success("Imported successfully.")
+                st.session_state.auto_run = True
                 st.rerun()
             except Exception as exc:
                 st.error(f"Import failed: {exc}")
@@ -419,22 +422,22 @@ with col_inputs:
             state["instructions"]["capacity"] = st.number_input(
                 "Capacity (veh/h/lane)", min_value=1,
                 value=int(state["instructions"].get("capacity") or 1800),
-                step=100, key="cfg_cap",
+                step=100, key=f"cfg_cap_{ver}",
             )
             state["instructions"]["inflation"] = st.number_input(
                 "MCU inflation factor",
                 value=float(state["instructions"].get("inflation") or 1.0),
-                step=0.05, format="%.2f", key="cfg_inf",
+                step=0.05, format="%.2f", key=f"cfg_inf_{ver}",
             )
             state["instructions"]["geo_ns"] = st.number_input(
                 "Geometry N-S (lanes)", min_value=1,
                 value=int(state["instructions"].get("geo_ns") or 3),
-                step=1, key="cfg_gns",
+                step=1, key=f"cfg_gns_{ver}",
             )
             state["instructions"]["geo_ew"] = st.number_input(
                 "Geometry E-W (lanes)", min_value=1,
                 value=int(state["instructions"].get("geo_ew") or 3),
-                step=1, key="cfg_gew",
+                step=1, key=f"cfg_gew_{ver}",
             )
 
             st.divider()
@@ -442,22 +445,22 @@ with col_inputs:
             state["instructions"]["nlsl"] = int(
                 st.checkbox("Allow NL + SL simultaneous",
                             value=bool(state["instructions"].get("nlsl")),
-                            key="chk_nlsl")
+                            key=f"chk_nlsl_{ver}")
             )
             state["instructions"]["elwl"] = int(
                 st.checkbox("Allow EL + WL simultaneous",
                             value=bool(state["instructions"].get("elwl")),
-                            key="chk_elwl")
+                            key=f"chk_elwl_{ver}")
             )
             state["instructions"]["img5"] = int(
                 st.checkbox("Enable 5th image",
                             value=bool(state["instructions"].get("img5")),
-                            key="chk_img5")
+                            key=f"chk_img5_{ver}")
             )
             state["instructions"]["img6"] = int(
                 st.checkbox("Enable 6th image",
                             value=bool(state["instructions"].get("img6")),
-                            key="chk_img6")
+                            key=f"chk_img6_{ver}")
             )
 
         with s_right:
@@ -465,7 +468,7 @@ with col_inputs:
             lrt_on = st.checkbox(
                 "LRT present at junction",
                 value=bool(state["rakal"].get("lrt_enabled")),
-                key="chk_lrt",
+                key=f"chk_lrt_{ver}",
             )
             state["rakal"]["lrt_enabled"] = int(lrt_on)
 
@@ -474,32 +477,32 @@ with col_inputs:
                     "LRT line name",
                     value=str(state["junc"].get("lrt_line_name") or ""),
                     placeholder="שם הקו",
-                    key="lrt_name",
+                    key=f"lrt_name_{ver}",
                 )
                 state["rakal"]["cycle_time"] = st.number_input(
                     "Signal cycle time (s)", min_value=1,
                     value=int(state["rakal"].get("cycle_time") or 120),
-                    step=5, key="lrt_cycle",
+                    step=5, key=f"lrt_cycle_{ver}",
                 )
                 state["rakal"]["lost_time"] = st.number_input(
                     "Lost time per phase (s)", min_value=0,
                     value=int(state["rakal"].get("lost_time") or 3),
-                    step=1, key="lrt_lost",
+                    step=1, key=f"lrt_lost_{ver}",
                 )
                 state["rakal"]["gen_lost_time"] = st.number_input(
                     "Total lost time (s)", min_value=0,
                     value=int(state["rakal"].get("gen_lost_time") or 6),
-                    step=1, key="lrt_glost",
+                    step=1, key=f"lrt_glost_{ver}",
                 )
                 state["rakal"]["headway"] = st.number_input(
                     "LRT headway (s)", min_value=1,
                     value=int(state["rakal"].get("headway") or 3),
-                    step=1, key="lrt_hw",
+                    step=1, key=f"lrt_hw_{ver}",
                 )
                 state["rakal"]["mcu"] = st.number_input(
                     "MCU", min_value=0.1,
                     value=float(state["rakal"].get("mcu") or 1.0),
-                    step=0.125, format="%.3f", key="lrt_mcu",
+                    step=0.125, format="%.3f", key=f"lrt_mcu_{ver}",
                 )
                 # LRT direction — matches c_optimization encoding:
                 # instructions[8]: 0=none, 1=N-S, 2=N-S+E side, 3=N-S+W side, 4/5/6/7=corner (paired)
@@ -525,7 +528,7 @@ with col_inputs:
                     "LRT direction type",
                     options=list(_LRT_DIRS.keys()),
                     index=list(_LRT_DIRS.keys()).index(_cur_label),
-                    key="lrt_dir_sel",
+                    key=f"lrt_dir_sel_{ver}",
                 )
                 state["instructions"]["lrt_orig_ns"], state["instructions"]["lrt_orig_ew"] = _LRT_DIRS[_sel]
 
@@ -545,7 +548,8 @@ with col_inputs:
 # ---------------------------------------------------------------------------
 # Run pipeline
 # ---------------------------------------------------------------------------
-if run_clicked:
+if run_clicked or st.session_state.auto_run:
+    st.session_state.auto_run = False
     template = st.session_state.excel_template
     if template is None:
         st.error("Cannot run: volume_calculator.xlsx template missing.")
