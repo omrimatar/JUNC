@@ -1946,16 +1946,20 @@ def c_optimization(car_sum,instructions,nataz,solver):
     # קונפליקט מיוחד  כאשר רכבת חוצה מדרום למערב
 
     prob += lrt_junction_sw + ANtcheck <= 1
+    prob += lrt_junction_sw + ANlcheck <= 1
     prob += lrt_junction_sw + AWlcheck <= 1
     prob += lrt_junction_sw + AWtcheck <= 1
     prob += lrt_junction_sw + AElcheck <= 1
 
     # קונפליקט מיוחד  כאשר רכבת חוצה ממערב לצפון
 
-    prob += lrt_junction_wn + AWtcheck <= 1
     prob += lrt_junction_wn + ANlcheck <= 1
     prob += lrt_junction_wn + ANtcheck <= 1
     prob += lrt_junction_wn + ASlcheck <= 1
+    prob += lrt_junction_wn + AEtcheck <= 1
+    prob += lrt_junction_wn + AElcheck <= 1
+
+
 
     #prob.solve()
     prob.solve(PULP_CBC_CMD(msg=False))
