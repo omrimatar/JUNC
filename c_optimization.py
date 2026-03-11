@@ -1957,10 +1957,7 @@ def c_optimization(car_sum,instructions,nataz,solver):
     prob.solve(PULP_CBC_CMD(msg=False))
     print("Status:", LpStatus[prob.status])
     if LpStatus[prob.status] != "Optimal":
-        error = "solution not optimal (c)"
-        MessageBox = ctypes.windll.user32.MessageBoxW
-        MessageBox(None, error, 'Phaser error', 0)
-        exit()
+        raise ValueError(f"Solver did not find an optimal solution (status: {LpStatus[prob.status]})")
     v_over_c= (imageA.varValue + imageB.varValue + imageC.varValue + imageD.varValue+imageE.varValue+imageF.varValue) / (
                 capacity - 50 * imageCcheck.varValue - 50 * imageDcheck.varValue-50*imageEcheck.varValue-50*imageFcheck.varValue -300)
 
