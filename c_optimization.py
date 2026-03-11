@@ -2007,9 +2007,9 @@ def c_optimization(car_sum,instructions,nataz,solver):
     elif lrt_junction_es:
         _lrt_conflict_movements = ['Stcheck', 'Slcheck', 'Nlcheck', 'Etcheck']
     elif lrt_junction_sw:
-        _lrt_conflict_movements = ['Ntcheck', 'Wlcheck', 'Wtcheck', 'Elcheck']
+        _lrt_conflict_movements = ['Ntcheck', 'Nlcheck', 'Wlcheck', 'Wtcheck', 'Elcheck']
     elif lrt_junction_wn:
-        _lrt_conflict_movements = ['Wtcheck', 'Nlcheck', 'Ntcheck', 'Slcheck']
+        _lrt_conflict_movements = ['Nlcheck', 'Ntcheck', 'Slcheck', 'Etcheck', 'Elcheck']
 
     lrt_compatible_phases = [True]  # Phase A is always LRT-compatible (enforced by constraints)
     if _lrt_conflict_movements:
