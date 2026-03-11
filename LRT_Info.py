@@ -107,32 +107,30 @@ class LRT_Info:
         2 = East & West
         3 = North, South, East & West
         """
-        # lrt_orig_ns / lrt_orig_ew encoding:
-        #   0 = no LRT on this axis
-        #   1 = both arms active (legacy: full N-S or E-W axis)
-        #   2 = first arm only  (N for ns, E for ew)
-        #   3 = second arm only (S for ns, W for ew)
+        # lrt_orig_ns / lrt_orig_ew encoding (matches c_optimization):
+        #   ns=1, ew=0  → N-S straight
+        #   ns=0, ew=1  → E-W straight
+        #   ns=2, ew=0  → N-S + side from East
+        #   ns=3, ew=0  → N-S + side from West
+        #   ns=0, ew=2  → E-W + side from North
+        #   ns=0, ew=3  → E-W + side from South
+        #   ns=4, ew=4  → N→E corner
+        #   ns=5, ew=5  → E→S corner
+        #   ns=6, ew=6  → S→W corner
+        #   ns=7, ew=7  → W→N corner
         ns, ew = self.LRT_Orig
-        n = ns in (1, 2)
-        s = ns in (1, 3)
-        e = ew in (1, 2)
-        w = ew in (1, 3)
-        arm_map = {
-            (False, False, False, False):  0,  # no LRT
-            (True,  True,  False, False):  1,  # N-S straight
-            (False, False, True,  True ):  2,  # E-W straight
-            (True,  True,  True,  True ):  3,  # all four arms
-            (True,  False, True,  False):  4,  # N-E corner
-            (False, True,  True,  False):  5,  # S-E corner
-            (True,  False, False, True ):  6,  # N-W corner
-            (False, True,  False, True ):  7,  # S-W corner
-            (True,  False, True,  True ):  8,  # N + E-W
-            (False, True,  True,  True ):  9,  # S + E-W
-            (True,  True,  True,  False): 10,  # N-S + E
-            (True,  True,  False, True ): 11,  # N-S + W
-            (True,  False, False, False): 12,  # N only
-            (False, True,  False, False): 13,  # S only
-            (False, False, True,  False): 14,  # E only
-            (False, False, False, True ): 15,  # W only
+        dir_map = {
+            (0, 0): 0,   # no LRT
+            (1, 0): 1,   # N-S straight
+            (0, 1): 2,   # E-W straight
+            (1, 1): 3,   # N-S + E-W (legacy both-axis)
+            (2, 0): 4,   # N-S + side East
+            (3, 0): 5,   # N-S + side West
+            (0, 2): 6,   # E-W + side North
+            (0, 3): 7,   # E-W + side South
+            (4, 4): 8,   # N→E corner
+            (5, 5): 9,   # E→S corner
+            (6, 6): 10,  # S→W corner
+            (7, 7): 11,  # W→N corner
         }
-        self.LRT_Dir = arm_map.get((n, s, e, w), 0)
+        self.LRT_Dir = dir_map.get((ns, ew), 0)

@@ -453,27 +453,33 @@ with col_inputs:
                     value=float(state["rakal"].get("mcu") or 1.0),
                     step=0.125, format="%.3f", key="lrt_mcu",
                 )
-                st.markdown("**LRT arms at junction**")
-                # Encoding: 0=none, 1=both arms on axis, 2=first arm only, 3=second arm only
-                _ns = int(state["instructions"].get("lrt_orig_ns") or 0)
-                _ew = int(state["instructions"].get("lrt_orig_ew") or 0)
-                _n = _ns in (1, 2)
-                _s = _ns in (1, 3)
-                _e = _ew in (1, 2)
-                _w = _ew in (1, 3)
-                chk_n = st.checkbox("North arm", value=_n, key="lrt_arm_n")
-                chk_s = st.checkbox("South arm", value=_s, key="lrt_arm_s")
-                chk_e = st.checkbox("East arm",  value=_e, key="lrt_arm_e")
-                chk_w = st.checkbox("West arm",  value=_w, key="lrt_arm_w")
-                # Encode back: 1=both, 2=N/E only, 3=S/W only, 0=none
-                if chk_n and chk_s:   state["instructions"]["lrt_orig_ns"] = 1
-                elif chk_n:           state["instructions"]["lrt_orig_ns"] = 2
-                elif chk_s:           state["instructions"]["lrt_orig_ns"] = 3
-                else:                 state["instructions"]["lrt_orig_ns"] = 0
-                if chk_e and chk_w:   state["instructions"]["lrt_orig_ew"] = 1
-                elif chk_e:           state["instructions"]["lrt_orig_ew"] = 2
-                elif chk_w:           state["instructions"]["lrt_orig_ew"] = 3
-                else:                 state["instructions"]["lrt_orig_ew"] = 0
+                # LRT direction — matches c_optimization encoding:
+                # instructions[8]: 0=none, 1=N-S, 2=N-S+E side, 3=N-S+W side, 4/5/6/7=corner (paired)
+                # instructions[9]: 0=none, 1=E-W, 2=E-W+N side, 3=E-W+S side, 4/5/6/7=corner (paired)
+                _LRT_DIRS = {
+                    "ללא רק\"ל":                   (0, 0),
+                    "צפון-דרום (ישר)":              (1, 0),
+                    "מזרח-מערב (ישר)":              (0, 1),
+                    "צפון-דרום + כניסה ממזרח":      (2, 0),
+                    "צפון-דרום + כניסה ממערב":      (3, 0),
+                    "מזרח-מערב + כניסה מצפון":      (0, 2),
+                    "מזרח-מערב + כניסה מדרום":      (0, 3),
+                    "פנייה צפון ↔ מזרח":            (4, 4),
+                    "פנייה מזרח ↔ דרום":            (5, 5),
+                    "פנייה דרום ↔ מערב":            (6, 6),
+                    "פנייה מערב ↔ צפון":            (7, 7),
+                }
+                _cur_ns = int(state["instructions"].get("lrt_orig_ns") or 0)
+                _cur_ew = int(state["instructions"].get("lrt_orig_ew") or 0)
+                _rev = {v: k for k, v in _LRT_DIRS.items()}
+                _cur_label = _rev.get((_cur_ns, _cur_ew), "ללא רק\"ל")
+                _sel = st.selectbox(
+                    "LRT direction type",
+                    options=list(_LRT_DIRS.keys()),
+                    index=list(_LRT_DIRS.keys()).index(_cur_label),
+                    key="lrt_dir_sel",
+                )
+                state["instructions"]["lrt_orig_ns"], state["instructions"]["lrt_orig_ew"] = _LRT_DIRS[_sel]
 
             st.divider()
             st.markdown("**Street names** (Hebrew supported)")

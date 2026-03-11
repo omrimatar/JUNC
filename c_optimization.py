@@ -20,8 +20,52 @@ def c_optimization(car_sum,instructions,nataz,solver):
     ElWlallowed = instructions[2]
     E_image_enables = instructions[3]
     F_image_enables = instructions[4]
-    lrt_junction_ns = instructions[8]
-    lrt_junction_ew= instructions[9]
+    #עדכון מיוחד לתנועות מיוחדות לרק"ל
+
+    if instructions[8]== 1:
+        lrt_junction_ns=1
+    else: lrt_junction_ns=0
+    if instructions[8] == 2:
+        lrt_junction_nse = 1
+    else:
+        lrt_junction_nse = 0
+    if instructions[8] == 3:
+        lrt_junction_nsw = 1
+    else:
+        lrt_junction_nsw = 0
+
+
+    if instructions[9]== 1:
+        lrt_junction_ew=1
+    else: lrt_junction_ew=0
+    if instructions[9] == 2:
+        lrt_junction_ewn = 1
+    else:
+        lrt_junction_ewn = 0
+    if instructions[9] == 3:
+        lrt_junction_ews = 1
+    else:
+        lrt_junction_ews = 0
+
+    if instructions[8] == 4 and instructions[9]== 4:
+        lrt_junction_ne=1
+    else:
+        lrt_junction_ne = 0
+
+    if instructions[8] == 5 and instructions[9] == 5:
+        lrt_junction_es = 1
+    else:
+        lrt_junction_es = 0
+
+    if instructions[8] == 6 and instructions[9] == 6:
+        lrt_junction_sw = 1
+    else:
+        lrt_junction_sw = 0
+
+    if instructions[8] == 7 and instructions[9] == 7:
+        lrt_junction_wn = 1
+    else:
+        lrt_junction_wn = 0
 
 
 
@@ -1821,21 +1865,93 @@ def c_optimization(car_sum,instructions,nataz,solver):
     prob += lrt_junction_ns + AWlcheck <= 1
     prob += lrt_junction_ns + ANlcheck <= 1
     prob += lrt_junction_ns + AEtcheck <= 1
-    prob += lrt_junction_ns + AErcheck <= 1
+   # prob += lrt_junction_ns + AErcheck <= 1
     prob += lrt_junction_ns + AElcheck <= 1
     prob += lrt_junction_ns + ASlcheck <= 1
-    prob += lrt_junction_ns + AWrcheck <= 1
+    #prob += lrt_junction_ns + AWrcheck <= 1
 
     # קונפליקט EW
 
     prob += ASlcheck+lrt_junction_ew <=1
     prob += AStcheck+lrt_junction_ew <=1
     prob += lrt_junction_ew + AWlcheck <= 1
-    prob += lrt_junction_ew + ANrcheck <= 1
+   # prob += lrt_junction_ew + ANrcheck <= 1
     prob += lrt_junction_ew + ANtcheck <= 1
     prob += lrt_junction_ew + ANlcheck <= 1
-    prob += ASrcheck+lrt_junction_ew <=1
+    #prob += ASrcheck+lrt_junction_ew <=1
     prob += AElcheck + lrt_junction_ew <= 1
+
+
+    # עדכון קונפליקטים מיוחדים לרקל
+
+    # קונפליקט מיוחד EW כאשר רכבת צדית מצפון
+
+    prob += lrt_junction_ewn + AErcheck <= 1
+    prob += lrt_junction_ewn + ANtcheck <= 1
+    prob += lrt_junction_ewn + ANrcheck <= 1
+    prob += lrt_junction_ewn + ANlcheck <= 1
+    prob += lrt_junction_ewn + AStcheck <= 1
+    prob += lrt_junction_ewn + AWlcheck <= 1
+
+    # קונפליקט מיוחד EW כאשר רכבת צדית מדרום
+
+    prob += lrt_junction_ews + AWrcheck <= 1
+    prob += lrt_junction_ews + AStcheck <= 1
+    prob += lrt_junction_ews + ASrcheck <= 1
+    prob += lrt_junction_ews + ASlcheck <= 1
+    prob += lrt_junction_ews + ANtcheck <= 1
+    prob += lrt_junction_ews + AElcheck <= 1
+
+    # קונפליקט מיוחד NS כאשר רכבת צדית ממזרח
+
+    prob += lrt_junction_nse + ASrcheck <= 1
+    prob += lrt_junction_nse + AEtcheck <= 1
+    prob += lrt_junction_nse + AErcheck <= 1
+    prob += lrt_junction_nse + AElcheck <= 1
+    prob += lrt_junction_nse + AWtcheck <= 1
+    prob += lrt_junction_nse + ANlcheck <= 1
+
+
+    # קונפליקט מיוחד NS כאשר רכבת צדית ממערב
+
+
+    prob += lrt_junction_nsw + ANrcheck <= 1
+    prob += lrt_junction_nsw + AWtcheck <= 1
+    prob += lrt_junction_nsw + AWrcheck <= 1
+    prob += lrt_junction_nsw + AWlcheck <= 1
+    prob += lrt_junction_nsw + AEtcheck <= 1
+    prob += lrt_junction_nsw + ASlcheck <= 1
+
+
+    # קונפליקט מיוחד  כאשר רכבת חוצה מצפון למזרח
+
+
+    prob += lrt_junction_ne + AWtcheck <= 1
+    prob += lrt_junction_ne + AWlcheck <= 1
+    prob += lrt_junction_ne + AElcheck <= 1
+    prob += lrt_junction_ne + AStcheck <= 1
+
+    # קונפליקט מיוחד  כאשר רכבת חוצה ממזרח לדרום
+
+    prob += lrt_junction_es + AStcheck <= 1
+    prob += lrt_junction_es + ASlcheck <= 1
+    prob += lrt_junction_es + ANlcheck <= 1
+    prob += lrt_junction_es + AEtcheck <= 1
+
+
+    # קונפליקט מיוחד  כאשר רכבת חוצה מדרום למערב
+
+    prob += lrt_junction_sw + ANtcheck <= 1
+    prob += lrt_junction_sw + AWlcheck <= 1
+    prob += lrt_junction_sw + AWtcheck <= 1
+    prob += lrt_junction_sw + AElcheck <= 1
+
+    # קונפליקט מיוחד  כאשר רכבת חוצה ממערב לצפון
+
+    prob += lrt_junction_wn + AWtcheck <= 1
+    prob += lrt_junction_wn + ANlcheck <= 1
+    prob += lrt_junction_wn + ANtcheck <= 1
+    prob += lrt_junction_wn + ASlcheck <= 1
 
     #prob.solve()
     prob.solve(PULP_CBC_CMD(msg=False))
