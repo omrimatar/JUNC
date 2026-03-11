@@ -340,7 +340,7 @@ def main(queue_params=None):
             min_v_c = 100.0
             for l in filtered:
                 car_sum = b_optimization(volume, l, nataz, solver)
-                v_c, sum_of_images, current_pulp_vars, images_values = c_optimization(car_sum, instructions, nataz,
+                v_c, sum_of_images, current_pulp_vars, images_values, lrt_compatible_phases = c_optimization(car_sum, instructions, nataz,
                                                                                       solver)
                 if v_c < min_v_c:
                     min_v_c = v_c
@@ -357,7 +357,7 @@ def main(queue_params=None):
             # בדיקת צומת יחיד על סמך הניתוב שהוזן
             real_capacity = instructions[0]
             car_sum = b_optimization(volume, lanes, nataz, solver)
-            v_c, sum_of_images, current_pulp_vars, images_values = c_optimization(car_sum, instructions, nataz, solver)
+            v_c, sum_of_images, current_pulp_vars, images_values, lrt_compatible_phases = c_optimization(car_sum, instructions, nataz, solver)
             queue_list = queue_length(car_sum, current_pulp_vars, **queue_params)
             if run == 0:
                 _car_sum_am = list(car_sum)
@@ -366,7 +366,7 @@ def main(queue_params=None):
                 _car_sum_pm = list(car_sum)
                 _pulp_vars_pm = dict(current_pulp_vars)
             if rakal_instructions[0] == 1:
-                v_c, real_capacity = rakal_capacity(instructions, rakal_instructions, images_values)
+                v_c, real_capacity = rakal_capacity(instructions, rakal_instructions, images_values, lrt_compatible_phases)
             write_to_excel(v_c, sum_of_images, current_pulp_vars, run, real_capacity)
             for keys, values in current_pulp_vars.items():
                 if values > 0:

@@ -130,6 +130,9 @@ if "editor_version" not in st.session_state:
 if "auto_run" not in st.session_state:
     st.session_state.auto_run = False
 
+if "last_imported_file_id" not in st.session_state:
+    st.session_state.last_imported_file_id = None
+
 if "excel_template" not in st.session_state:
     if _TEMPLATE.exists():
         st.session_state.excel_template = _TEMPLATE.read_bytes()
@@ -248,17 +251,17 @@ with st.sidebar:
     st.caption("Load an existing volume_calculator.xlsx to fill the form.")
     uploaded = st.file_uploader("Choose file", type=["xlsx"],
                                 label_visibility="collapsed")
-    if uploaded:
-        if st.button("Import →  Fill form", use_container_width=True):
-            try:
-                new_state = read_excel_to_state(uploaded.read())
-                st.session_state.junc_state = new_state
-                state = new_state
-                st.session_state.editor_version += 1
-                st.session_state.auto_run = True
-                st.rerun()
-            except Exception as exc:
-                st.error(f"Import failed: {exc}")
+    if uploaded and uploaded.file_id != st.session_state.last_imported_file_id:
+        try:
+            new_state = read_excel_to_state(uploaded.read())
+            st.session_state.junc_state = new_state
+            state = new_state
+            st.session_state.editor_version += 1
+            st.session_state.last_imported_file_id = uploaded.file_id
+            st.session_state.auto_run = True
+            st.rerun()
+        except Exception as exc:
+            st.error(f"Import failed: {exc}")
 
     st.divider()
 

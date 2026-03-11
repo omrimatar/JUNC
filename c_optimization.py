@@ -1926,17 +1926,21 @@ def c_optimization(car_sum,instructions,nataz,solver):
     # קונפליקט מיוחד  כאשר רכבת חוצה מצפון למזרח
 
 
-    prob += lrt_junction_ne + AWtcheck <= 1
-    prob += lrt_junction_ne + AWlcheck <= 1
+    prob += lrt_junction_ne + AEtcheck <= 1
     prob += lrt_junction_ne + AElcheck <= 1
+    prob += lrt_junction_ne + AWlcheck <= 1
     prob += lrt_junction_ne + AStcheck <= 1
+    prob += lrt_junction_ne + ASlcheck <= 1
+
 
     # קונפליקט מיוחד  כאשר רכבת חוצה ממזרח לדרום
 
     prob += lrt_junction_es + AStcheck <= 1
     prob += lrt_junction_es + ASlcheck <= 1
     prob += lrt_junction_es + ANlcheck <= 1
-    prob += lrt_junction_es + AEtcheck <= 1
+    prob += lrt_junction_es + AWtcheck <= 1
+    prob += lrt_junction_es + AWlcheck <= 1
+
 
 
     # קונפליקט מיוחד  כאשר רכבת חוצה מדרום למערב
@@ -1980,6 +1984,39 @@ def c_optimization(car_sum,instructions,nataz,solver):
 
     images_values = [imageA.varValue,imageB.varValue,imageC.varValue,imageD.varValue,imageE.varValue,imageF.varValue]
 
-    return v_over_c,sum_of_images,return_pulp_vars,images_values
+    # Determine which phases B-F are LRT-compatible (contain no LRT-conflicting movements)
+    _lrt_conflict_movements = []
+    if lrt_junction_ns:
+        _lrt_conflict_movements = ['Wtcheck', 'Wlcheck', 'Nlcheck', 'Etcheck', 'Elcheck', 'Slcheck']
+    elif lrt_junction_ew:
+        _lrt_conflict_movements = ['Slcheck', 'Stcheck', 'Wlcheck', 'Ntcheck', 'Nlcheck', 'Elcheck']
+    elif lrt_junction_ewn:
+        _lrt_conflict_movements = ['Ercheck', 'Ntcheck', 'Nrcheck', 'Nlcheck', 'Stcheck', 'Wlcheck']
+    elif lrt_junction_ews:
+        _lrt_conflict_movements = ['Wrcheck', 'Stcheck', 'Srcheck', 'Slcheck', 'Ntcheck', 'Elcheck']
+    elif lrt_junction_nse:
+        _lrt_conflict_movements = ['Srcheck', 'Etcheck', 'Ercheck', 'Elcheck', 'Wtcheck', 'Nlcheck']
+    elif lrt_junction_nsw:
+        _lrt_conflict_movements = ['Nrcheck', 'Wtcheck', 'Wrcheck', 'Wlcheck', 'Etcheck', 'Slcheck']
+    elif lrt_junction_ne:
+        _lrt_conflict_movements = ['Wtcheck', 'Wlcheck', 'Elcheck', 'Stcheck']
+    elif lrt_junction_es:
+        _lrt_conflict_movements = ['Stcheck', 'Slcheck', 'Nlcheck', 'Etcheck']
+    elif lrt_junction_sw:
+        _lrt_conflict_movements = ['Ntcheck', 'Wlcheck', 'Wtcheck', 'Elcheck']
+    elif lrt_junction_wn:
+        _lrt_conflict_movements = ['Wtcheck', 'Nlcheck', 'Ntcheck', 'Slcheck']
+
+    lrt_compatible_phases = [True]  # Phase A is always LRT-compatible (enforced by constraints)
+    if _lrt_conflict_movements:
+        _check_vals = {v.name: v.varValue for v in prob.variables()
+                       if v.name.endswith('check') and len(v.name) == 8}
+        for phase in ['B', 'C', 'D', 'E', 'F']:
+            hostile = any(_check_vals.get(phase + mov, 0) == 1 for mov in _lrt_conflict_movements)
+            lrt_compatible_phases.append(not hostile)
+    else:
+        lrt_compatible_phases = [True] * 6  # No LRT active
+
+    return v_over_c, sum_of_images, return_pulp_vars, images_values, lrt_compatible_phases
 
 
