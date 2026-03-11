@@ -19,6 +19,20 @@ from ui_excel import DIRECTIONS
 # ── Font ──────────────────────────────────────────────────────────────────────
 _FONT = "Tahoma" if platform.system() == "Windows" else "DejaVu Sans"
 
+
+def _rtl(text: str) -> str:
+    """Reorder Hebrew/Arabic text for correct RTL display in matplotlib."""
+    if not text:
+        return text
+    try:
+        from bidi.algorithm import get_display
+        return get_display(text)
+    except ImportError:
+        # Fallback: reverse if string contains Hebrew/Arabic characters
+        if any('\u0590' <= c <= '\u05ff' or '\u0600' <= c <= '\u06ff' for c in text):
+            return text[::-1]
+        return text
+
 # ── Layout ────────────────────────────────────────────────────────────────────
 _ROAD_HW  = 1.15   # half-width of road arm
 _BOX      = 1.15   # half-size of intersection square
@@ -235,7 +249,7 @@ def draw_junction(state: dict) -> plt.Figure:
     for d in DIRECTIONS:
         dx, dy = _DIR_UNIT[d]
         street = str(streets.get(d, "") or "").strip()
-        label  = street if street else d
+        label  = _rtl(street) if street else d
         color  = _STREET_COLOR if street else _DIR_COLOR
         style  = "normal"  if street else "italic"
         size   = 8         if street else 7
@@ -256,7 +270,7 @@ def draw_junction(state: dict) -> plt.Figure:
 
     # ── Title ─────────────────────────────────────────────────────────────────
     proj = str(state.get("junc", {}).get("more_info", "") or "").strip()
-    ax.set_title(proj or "Junction Schematic",
+    ax.set_title(_rtl(proj) if proj else "Junction Schematic",
                  color="#ccccdd", fontsize=9.5, pad=10, fontweight="bold")
 
     # ── Legend ────────────────────────────────────────────────────────────────
