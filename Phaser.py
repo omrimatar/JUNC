@@ -7,7 +7,7 @@ from queue_length import queue_length
 from personal_filter import personal_filter
 from rakal_capacity import rakal_capacity
 import timeit
-import ctypes
+import platform
 import shutil
 # import pulp as pl
 # import os
@@ -72,19 +72,23 @@ def main(queue_params=None):
                 row = str(i + 6)
                 ws2[namesA + row] = write_names[i]
                 ws2[valuesB + row] = write_values[i]
-            MessageBox = ctypes.windll.user32.MessageBoxW
-            MB_RETRYCANCEL = 5
-            IDRETRY = 4
-            while True:
-                try:
-                    wb2.save('OUTPUT.xlsx')
-                    break
-                except PermissionError:
-                    result = MessageBox(None,
-                                        'OUTPUT.xlsx is open in Excel.\nPlease close it and press Retry.',
-                                        'Phaser error', MB_RETRYCANCEL)
-                    if result != IDRETRY:
-                        exit()
+            if platform.system() == 'Windows':
+                import ctypes
+                MessageBox = ctypes.windll.user32.MessageBoxW
+                MB_RETRYCANCEL = 5
+                IDRETRY = 4
+                while True:
+                    try:
+                        wb2.save('OUTPUT.xlsx')
+                        break
+                    except PermissionError:
+                        result = MessageBox(None,
+                                            'OUTPUT.xlsx is open in Excel.\nPlease close it and press Retry.',
+                                            'Phaser error', MB_RETRYCANCEL)
+                        if result != IDRETRY:
+                            raise PermissionError('OUTPUT.xlsx is locked — please close it.')
+            else:
+                wb2.save('OUTPUT.xlsx')
 
             wb2.close()
 
@@ -125,28 +129,17 @@ def main(queue_params=None):
                 try:
                     volume[i] = round(volume[i] * instructions[10], 0)
                 except:
-                    error = "volume must be put as numbers"
-                    MessageBox = ctypes.windll.user32.MessageBoxW
-                    MessageBox(None, error, 'Phaser error', 0)
-                    exit()
+                    raise ValueError("volume must be put as numbers")
             rakal_instructions = [suppress_null(ws.cell(row=36 + i, column=26).value) for i in range(6)]
             for i in range(6):
                 if i == 4 and rakal_instructions[i] == 1.125: i = i + 1
                 if isinstance(rakal_instructions[i], int) == False:
-                    # if isinstance(rakal_instructions[i],int)== False and rakal_instructions[i] != 1.125:
-
-                    error = "rakal instructions table must be integers"
-                    MessageBox = ctypes.windll.user32.MessageBoxW
-                    MessageBox(None, error, 'Phaser error', 0)
-                    exit()
+                    raise ValueError("rakal instructions table must be integers")
             for i in range(11):
                 # אם בעתיד מגדילים את הריינג' לשנות את פקדות הברייק שמתחת
                 if i == 10 and isinstance(instructions[i], float) == True: break
                 if isinstance(instructions[i], int) == False:
-                    error = "instructions table must be integers"
-                    MessageBox = ctypes.windll.user32.MessageBoxW
-                    MessageBox(None, error, 'Phaser error', 0)
-                    exit()
+                    raise ValueError("instructions table must be integers")
 
             # instructionscheck = [s for s in rakal_instructions if s.isdigit()]
 
