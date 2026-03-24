@@ -502,15 +502,20 @@ with col_inputs:
     with tab_nataz:
         st.markdown("**Nataz (נת״צ) — Public Transit Lane Designations**")
         st.caption(
-            "Use this table to mark which lanes (or lane movements) are designated as bus lanes. "
-            "This controls how lanes appear in the output PowerPoint — bus lanes are drawn differently. "
-            "As a side effect, routing treats bus-designated movements as unavailable to private cars.\n\n"
-            "**Codes per lane type:**\n"
-            "- **R / T / L** (simple lanes): `1` = full nataz (entire lane is bus-only), `0` = no nataz.\n"
-            "- **RT**: `0` = none · `1` = full · `2` = nataz on straight only · `3` = nataz on right only\n"
-            "- **TL**: `0` = none · `1` = full · `3` = nataz on left only · `4` = nataz on straight only\n"
-            "- **RL**: `0` = none · `1` = full · `2` = nataz on left only · `4` = nataz on right only\n"
-            "- **RTL**: `0`–`7` bitmask — `1`=full · `2`=block R · `3`=block T · `4`=block L · `5`=block R+T · `6`=block R+L · `7`=block T+L"
+            "Enter the number of dedicated bus lanes for each simple lane type (R / T / L). "
+            "For complex lanes (RT, TL, RL, RTL), enter a code indicating which movement "
+            "within that lane is designated for public transit:\n\n"
+            "| Code | Movement |\n"
+            "|------|----------|\n"
+            "| `1`  | Entire lane (all movements) |\n"
+            "| `2`  | Right only |\n"
+            "| `3`  | Through only |\n"
+            "| `4`  | Left only |\n"
+            "| `5`  | Right + Through |\n"
+            "| `6`  | Right + Left |\n"
+            "| `7`  | Through + Left |\n\n"
+            "Nataz designations are shown in the output PowerPoint. "
+            "Bus-only movements are also excluded from private-car routing."
         )
         nataz_df = _make_lane_df("nataz")
         edited_nataz = st.data_editor(
