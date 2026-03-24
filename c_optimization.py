@@ -1965,7 +1965,17 @@ def c_optimization(car_sum,instructions,nataz,solver):
     prob.solve(PULP_CBC_CMD(msg=False))
     print("Status:", LpStatus[prob.status])
     if LpStatus[prob.status] != "Optimal":
-        raise ValueError(f"Solver did not find an optimal solution (status: {LpStatus[prob.status]})")
+        raise ValueError(
+            f"Phase-plan solver failed (status: {LpStatus[prob.status]}). "
+            f"The optimizer could not build a feasible signal phase plan for the given lane layout. "
+            f"Possible causes: "
+            f"(1) LRT conflict settings (cells V44/V45) are incompatible with the lane layout — "
+            f"verify the LRT origin direction codes. "
+            f"(2) The capacity parameter (cell V36) is 0 or unrealistically low. "
+            f"(3) The volume/capacity ratio is extreme — check volumes in rows 4-5 and "
+            f"the inflation factor in cell V46. "
+            f"If the issue persists, set V44=0 and V45=0 (no LRT) and retry."
+        )
     v_over_c= (imageA.varValue + imageB.varValue + imageC.varValue + imageD.varValue+imageE.varValue+imageF.varValue) / (
                 capacity - 50 * imageCcheck.varValue - 50 * imageDcheck.varValue-50*imageEcheck.varValue-50*imageFcheck.varValue -300)
 

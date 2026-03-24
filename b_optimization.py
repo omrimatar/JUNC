@@ -1,7 +1,6 @@
 from pulp import *
 from functools import reduce
 from itertools import permutations
-import ctypes
 
 def n_choose_2(n):
     return int(reduce(lambda x, y: x * y[0] / y[1], zip(range(n - 2 + 1, n+1), range(1, 2+1)), 1))
@@ -197,140 +196,314 @@ def b_optimization(volume,lanes,nataz,solver):
     if nataz[26] == 4 or nataz[26] == 6 or nataz[26] == 7:
         WtrafficRTLlbin = 0
 
-    #ימינה חופשי מוגדר מעל 9 נתיבים
-    error = 0
-    message=0
-
+    # ---- Free right-turn lane capacity check (>=9 lanes = free right) ----
     if NlanesR >= 9:
-        if NcountR <900:
+        if NcountR < 900:
             NcountR = 0
         else:
-            message = "north right turn dedicated lane exceed capacity"
+            print("WARNING: North right-turn free lane volume exceeds 900 veh/hr (cell C8). "
+                  "Volume will not be zeroed out — verify this is intentional.")
     if SlanesR >= 9:
         if ScountR < 900:
             ScountR = 0
         else:
-            message = "south right turn dedicated lane exceed capacity"
+            print("WARNING: South right-turn free lane volume exceeds 900 veh/hr (cell K8). "
+                  "Volume will not be zeroed out — verify this is intentional.")
     if ElanesR >= 9:
         if EcountR < 900:
             EcountR = 0
         else:
-            message = "east right turn dedicated lane exceed capacity"
+            print("WARNING: East right-turn free lane volume exceeds 900 veh/hr (cell S8). "
+                  "Volume will not be zeroed out — verify this is intentional.")
     if WlanesR >= 9:
         if WcountR < 900:
             WcountR = 0
         else:
-            message = "west right turn dedicated lane exceed capacity"
+            print("WARNING: West right-turn free lane volume exceeds 900 veh/hr (cell AA8). "
+                  "Volume will not be zeroed out — verify this is intentional.")
 
-    if message !=0:
-        print (message)
-        MessageBox = ctypes.windll.user32.MessageBoxW
-        MessageBox(None, message, 'Phaser message', 1)
+    # ---- Negative volume / lane check ----
+    _vol_cells = ['D4', 'E4', 'F4', 'H4', 'I4', 'J4', 'L4', 'M4', 'N4', 'P4', 'Q4', 'R4']
+    _vol_names = ['North right', 'North through', 'North left',
+                  'South right', 'South through', 'South left',
+                  'East right',  'East through',  'East left',
+                  'West right',  'West through',  'West left']
+    for _i, (_v, _cell, _name) in enumerate(zip(volume, _vol_cells, _vol_names)):
+        if _v < 0:
+            raise ValueError(
+                f"Negative volume in {_name} (cell {_cell} / {_cell[0]}{int(_cell[1:])+1}): "
+                f"value = {_v}. Traffic volumes must be 0 or greater. "
+                f"Check rows 4-5 (morning/evening volumes) and the inflation factor in cell V46."
+            )
 
-    # בדיקת שגיאות מספר נתיבים לא שלם
-    for i in range (28):
+    _lane_cells  = ['C8','D8','E8','F8','G8','H8','I8',
+                    'K8','L8','M8','N8','O8','P8','Q8',
+                    'S8','T8','U8','V8','W8','X8','Y8',
+                    'AA8','AB8','AC8','AD8','AE8','AF8','AG8']
+    _lane_types  = ['R','RT','T','TL','L','RTL','RL'] * 4
+    _lane_dirs   = ['North']*7 + ['South']*7 + ['East']*7 + ['West']*7
+    for _i, (_ln, _cell, _lt, _ld) in enumerate(zip(lanes, _lane_cells, _lane_types, _lane_dirs)):
+        if _ln < 0:
+            raise ValueError(
+                f"Negative lane count for {_ld} {_lt} lane (cell {_cell}): "
+                f"value = {_ln}. Lane counts must be 0 or greater. "
+                f"Check row 8 (lane counts)."
+            )
+
+    # ---- Lane count / nataz must be integers ----
+    for i in range(28):
         try:
-            x = lanes[i]%1
-            y= nataz[i]%1
-        except:
-            error= "number of lanes must be an integer"
-            MessageBox = ctypes.windll.user32.MessageBoxW
-            MessageBox(None, error, 'Phaser error', 0)
-            exit()
+            x = lanes[i] % 1
+            y = nataz[i] % 1
+        except Exception:
+            raise ValueError(
+                f"Non-numeric value in lane count or nataz code at index {i} "
+                f"(cell {_lane_cells[i]} or row-9 equivalent). "
+                f"All values in row 8 (lane counts) and row 9 (nataz codes) must be integers."
+            )
+        if x != 0 or y != 0:
+            raise ValueError(
+                f"Non-integer value at {_lane_dirs[i]} {_lane_types[i]} "
+                f"(lane cell {_lane_cells[i]}, nataz cell {_lane_cells[i].replace('8','9')}). "
+                f"Lane counts and nataz codes must be whole numbers (no decimals)."
+            )
 
-        if x !=0 or y !=0:
-
-            error= "number of lanes must be an integer"
-
-    # בדיקת שגיאות קוד נת"צ שגוי
-    if nataz[1] >3:
-        error= "nataz coding error"
-    if nataz[3]== 2 or nataz[3]>4:
-        error= "nataz coding error"
-
-    if nataz[6]==3 or nataz[6]>4:
-        error = "nataz coding error"
-
-    if nataz[5] >7:
-        error = "nataz coding error"
-
+    # ---- Nataz code range validation ----
+    # North RT (cell D9): valid 0-3
+    if nataz[1] > 3:
+        raise ValueError(
+            f"Invalid nataz code in cell D9 (North RT lane): value = {nataz[1]}. "
+            f"Valid codes: 0=none, 1=full transit, 2=transit straight only, 3=transit right only. "
+            f"Maximum allowed value is 3."
+        )
+    # North TL (cell F9): valid 0,1,3,4 — code 2 is forbidden
+    if nataz[3] == 2 or nataz[3] > 4:
+        raise ValueError(
+            f"Invalid nataz code in cell F9 (North TL lane): value = {nataz[3]}. "
+            f"Valid codes: 0=none, 1=full transit, 3=transit left only, 4=transit straight only. "
+            f"Code 2 is not valid for TL lanes; maximum allowed value is 4."
+        )
+    # North RL (cell I9): valid 0,1,2,4 — code 3 is forbidden
+    if nataz[6] == 3 or nataz[6] > 4:
+        raise ValueError(
+            f"Invalid nataz code in cell I9 (North RL lane): value = {nataz[6]}. "
+            f"Valid codes: 0=none, 1=full transit, 2=transit left only, 4=transit right only. "
+            f"Code 3 is not valid for RL lanes; maximum allowed value is 4."
+        )
+    # North RTL (cell H9): valid 0-7
+    if nataz[5] > 7:
+        raise ValueError(
+            f"Invalid nataz code in cell H9 (North RTL lane): value = {nataz[5]}. "
+            f"Valid codes: 0-7 (0=none, 1=full transit, 2=block right, 3=block straight, "
+            f"4=block left, 5=block right+straight, 6=block right+left, 7=block straight+left)."
+        )
+    # South RT (cell L9): valid 0-3
     if nataz[8] > 3:
-        error = "nataz coding error"
+        raise ValueError(
+            f"Invalid nataz code in cell L9 (South RT lane): value = {nataz[8]}. "
+            f"Valid codes: 0=none, 1=full transit, 2=transit straight only, 3=transit right only. "
+            f"Maximum allowed value is 3."
+        )
+    # South TL (cell N9): valid 0,1,3,4 — code 2 forbidden
     if nataz[10] == 2 or nataz[3] > 4:
-        error = "nataz coding error"
-
+        raise ValueError(
+            f"Invalid nataz code in cell N9 (South TL lane): value = {nataz[10]}. "
+            f"Valid codes: 0=none, 1=full transit, 3=transit left only, 4=transit straight only. "
+            f"Code 2 is not valid for TL lanes; maximum allowed value is 4."
+        )
+    # South RL (cell Q9): valid 0,1,2,4 — code 3 forbidden
     if nataz[13] == 3 or nataz[6] > 4:
-        error = "nataz coding error"
-
+        raise ValueError(
+            f"Invalid nataz code in cell Q9 (South RL lane): value = {nataz[13]}. "
+            f"Valid codes: 0=none, 1=full transit, 2=transit left only, 4=transit right only. "
+            f"Code 3 is not valid for RL lanes; maximum allowed value is 4."
+        )
+    # South RTL (cell P9): valid 0-7
     if nataz[12] > 7:
-        error = "nataz coding error"
-
+        raise ValueError(
+            f"Invalid nataz code in cell P9 (South RTL lane): value = {nataz[12]}. "
+            f"Valid codes: 0-7 (0=none, 1=full transit, 2=block right, 3=block straight, "
+            f"4=block left, 5=block right+straight, 6=block right+left, 7=block straight+left)."
+        )
+    # East RT (cell T9): valid 0-3
     if nataz[15] > 3:
-        error = "nataz coding error"
+        raise ValueError(
+            f"Invalid nataz code in cell T9 (East RT lane): value = {nataz[15]}. "
+            f"Valid codes: 0=none, 1=full transit, 2=transit straight only, 3=transit right only. "
+            f"Maximum allowed value is 3."
+        )
+    # East TL (cell V9): valid 0,1,3,4 — code 2 forbidden
     if nataz[17] == 2 or nataz[3] > 4:
-        error = "nataz coding error"
-
+        raise ValueError(
+            f"Invalid nataz code in cell V9 (East TL lane): value = {nataz[17]}. "
+            f"Valid codes: 0=none, 1=full transit, 3=transit left only, 4=transit straight only. "
+            f"Code 2 is not valid for TL lanes; maximum allowed value is 4."
+        )
+    # East RL (cell Y9): valid 0,1,2,4 — code 3 forbidden
     if nataz[20] == 3 or nataz[6] > 4:
-        error = "nataz coding error"
-
+        raise ValueError(
+            f"Invalid nataz code in cell Y9 (East RL lane): value = {nataz[20]}. "
+            f"Valid codes: 0=none, 1=full transit, 2=transit left only, 4=transit right only. "
+            f"Code 3 is not valid for RL lanes; maximum allowed value is 4."
+        )
+    # East RTL (cell X9): valid 0-7
     if nataz[19] > 7:
-        error = "nataz coding error"
-
+        raise ValueError(
+            f"Invalid nataz code in cell X9 (East RTL lane): value = {nataz[19]}. "
+            f"Valid codes: 0-7 (0=none, 1=full transit, 2=block right, 3=block straight, "
+            f"4=block left, 5=block right+straight, 6=block right+left, 7=block straight+left)."
+        )
+    # West RT (cell AB9): valid 0-3
     if nataz[22] > 3:
-        error = "nataz coding error"
+        raise ValueError(
+            f"Invalid nataz code in cell AB9 (West RT lane): value = {nataz[22]}. "
+            f"Valid codes: 0=none, 1=full transit, 2=transit straight only, 3=transit right only. "
+            f"Maximum allowed value is 3."
+        )
+    # West TL (cell AD9): valid 0,1,3,4 — code 2 forbidden
     if nataz[24] == 2 or nataz[3] > 4:
-        error = "nataz coding error"
-
+        raise ValueError(
+            f"Invalid nataz code in cell AD9 (West TL lane): value = {nataz[24]}. "
+            f"Valid codes: 0=none, 1=full transit, 3=transit left only, 4=transit straight only. "
+            f"Code 2 is not valid for TL lanes; maximum allowed value is 4."
+        )
+    # West RL (cell AG9): valid 0,1,2,4 — code 3 forbidden
     if nataz[27] == 3 or nataz[6] > 4:
-        error = "nataz coding error"
-
+        raise ValueError(
+            f"Invalid nataz code in cell AG9 (West RL lane): value = {nataz[27]}. "
+            f"Valid codes: 0=none, 1=full transit, 2=transit left only, 4=transit right only. "
+            f"Code 3 is not valid for RL lanes; maximum allowed value is 4."
+        )
+    # West RTL (cell AF9): valid 0-7
     if nataz[26] > 7:
-        error = "nataz coding error"
+        raise ValueError(
+            f"Invalid nataz code in cell AF9 (West RTL lane): value = {nataz[26]}. "
+            f"Valid codes: 0-7 (0=none, 1=full transit, 2=block right, 3=block straight, "
+            f"4=block left, 5=block right+straight, 6=block right+left, 7=block straight+left)."
+        )
 
+    # ---- Max 1 complex lane per type per direction ----
+    if NlanesRT > 1 or NlanesRTL > 1 or NlanesRL > 1 or NlanesTL > 1:
+        _issues = []
+        if NlanesRT  > 1: _issues.append(f"RT={NlanesRT} (cell D8)")
+        if NlanesTL  > 1: _issues.append(f"TL={NlanesTL} (cell F8)")
+        if NlanesRTL > 1: _issues.append(f"RTL={NlanesRTL} (cell H8)")
+        if NlanesRL  > 1: _issues.append(f"RL={NlanesRL} (cell I8)")
+        raise ValueError(
+            f"North routing error: only 1 complex lane of each type is allowed per direction. "
+            f"Offending cells — {', '.join(_issues)}. "
+            f"Reduce each value to 0 or 1 in row 8."
+        )
+    if SlanesRT > 1 or SlanesRTL > 1 or SlanesRL > 1 or SlanesTL > 1:
+        _issues = []
+        if SlanesRT  > 1: _issues.append(f"RT={SlanesRT} (cell L8)")
+        if SlanesTL  > 1: _issues.append(f"TL={SlanesTL} (cell N8)")
+        if SlanesRTL > 1: _issues.append(f"RTL={SlanesRTL} (cell P8)")
+        if SlanesRL  > 1: _issues.append(f"RL={SlanesRL} (cell Q8)")
+        raise ValueError(
+            f"South routing error: only 1 complex lane of each type is allowed per direction. "
+            f"Offending cells — {', '.join(_issues)}. "
+            f"Reduce each value to 0 or 1 in row 8."
+        )
+    if ElanesRT > 1 or ElanesRTL > 1 or ElanesRL > 1 or ElanesTL > 1:
+        _issues = []
+        if ElanesRT  > 1: _issues.append(f"RT={ElanesRT} (cell T8)")
+        if ElanesTL  > 1: _issues.append(f"TL={ElanesTL} (cell V8)")
+        if ElanesRTL > 1: _issues.append(f"RTL={ElanesRTL} (cell X8)")
+        if ElanesRL  > 1: _issues.append(f"RL={ElanesRL} (cell Y8)")
+        raise ValueError(
+            f"East routing error: only 1 complex lane of each type is allowed per direction. "
+            f"Offending cells — {', '.join(_issues)}. "
+            f"Reduce each value to 0 or 1 in row 8."
+        )
+    if WlanesRT > 1 or WlanesRTL > 1 or WlanesRL > 1 or WlanesTL > 1:
+        _issues = []
+        if WlanesRT  > 1: _issues.append(f"RT={WlanesRT} (cell AB8)")
+        if WlanesTL  > 1: _issues.append(f"TL={WlanesTL} (cell AD8)")
+        if WlanesRTL > 1: _issues.append(f"RTL={WlanesRTL} (cell AF8)")
+        if WlanesRL  > 1: _issues.append(f"RL={WlanesRL} (cell AG8)")
+        raise ValueError(
+            f"West routing error: only 1 complex lane of each type is allowed per direction. "
+            f"Offending cells — {', '.join(_issues)}. "
+            f"Reduce each value to 0 or 1 in row 8."
+        )
 
-    #בדיקת שגיאות יותר מנתיב מורכב אחד
-    if NlanesRT>1 or NlanesRTL>1 or NlanesRL>1 or NlanesTL>1:
-        error= "north routing is not possible- more then one complex lane"
-    if SlanesRT>1 or SlanesRTL>1 or SlanesRL>1 or SlanesTL>1:
-        error= "south routing is not possible- more then one complex lane"
-    if ElanesRT>1 or ElanesRTL>1 or ElanesRL>1 or ElanesTL>1:
-        error= "east routing is not possible- more then one complex lane"
-    if WlanesRT>1 or WlanesRTL>1 or WlanesRL>1 or WlanesTL>1:
-        error= "west routing is not possible- more then one complex lane"
+    # ---- Volume exists but no lane can serve that movement ----
+    if NlanesR+NlanesRT+NlanesRTL+NlanesRL+NtrafficRTrbin+NtrafficRTLrbin+NtrafficRLrbin-3 == 0 and NcountR > 0:
+        raise ValueError(
+            f"North right-turn volume = {int(NcountR)} veh/hr (cells D4/D5) but no lane can serve it. "
+            f"Add at least one of: R (cell C8), RT (cell D8), RTL (cell H8), RL (cell I8). "
+            f"If a shared lane is present, check that its nataz code (row 9) does not block right turns."
+        )
+    if NlanesT+NlanesRT+NlanesRTL+NlanesTL+NtrafficRTtbin+NtrafficRTLtbin+NtrafficTLtbin-3 == 0 and NcountT > 0:
+        raise ValueError(
+            f"North through volume = {int(NcountT)} veh/hr (cells E4/E5) but no lane can serve it. "
+            f"Add at least one of: T (cell E8), RT (cell D8), RTL (cell H8), TL (cell F8). "
+            f"If a shared lane is present, check that its nataz code (row 9) does not block straight movement."
+        )
+    if NlanesL+NlanesTL+NlanesRTL+NlanesRL+NtrafficTLlbin+NtrafficRTLlbin+NtrafficRLlbin-3 == 0 and NcountL > 0:
+        raise ValueError(
+            f"North left-turn volume = {int(NcountL)} veh/hr (cells F4/F5) but no lane can serve it. "
+            f"Add at least one of: L (cell G8), TL (cell F8), RTL (cell H8), RL (cell I8). "
+            f"If a shared lane is present, check that its nataz code (row 9) does not block left turns."
+        )
 
-    #בדיקת שגיאות עבור נפח בתנועה ללא נתיב מתאים (כולל נת"צ)
-    if NlanesR+NlanesRT+NlanesRTL+NlanesRL +NtrafficRTrbin+NtrafficRTLrbin+NtrafficRLrbin-3 ==0 and NcountR>0:
-        error= "missing north right turn"
-    if NlanesT + NlanesRT + NlanesRTL + NlanesTL+NtrafficRTtbin+NtrafficRTLtbin+NtrafficTLtbin-3 == 0 and NcountT > 0:
-        error="missing north through"
-    if NlanesL + NlanesTL + NlanesRTL + NlanesRL+NtrafficTLlbin+NtrafficRTLlbin+NtrafficRLlbin-3 == 0 and NcountL > 0:
-        error="missing north left turn"
+    if SlanesR+SlanesRT+SlanesRTL+SlanesRL+StrafficRTrbin+StrafficRTLrbin+StrafficRLrbin-3 == 0 and ScountR > 0:
+        raise ValueError(
+            f"South right-turn volume = {int(ScountR)} veh/hr (cells H4/H5) but no lane can serve it. "
+            f"Add at least one of: R (cell K8), RT (cell L8), RTL (cell P8), RL (cell Q8). "
+            f"If a shared lane is present, check that its nataz code (row 9) does not block right turns."
+        )
+    if SlanesT+SlanesRT+SlanesRTL+SlanesTL+SlanesTL+StrafficRTtbin+StrafficRTLtbin+StrafficTLtbin-3 == 0 and ScountT > 0:
+        raise ValueError(
+            f"South through volume = {int(ScountT)} veh/hr (cells I4/I5) but no lane can serve it. "
+            f"Add at least one of: T (cell M8), RT (cell L8), RTL (cell P8), TL (cell N8). "
+            f"If a shared lane is present, check that its nataz code (row 9) does not block straight movement."
+        )
+    if SlanesL+SlanesTL+SlanesRTL+SlanesRL+StrafficTLlbin+StrafficRTLlbin+StrafficRLlbin-3 == 0 and ScountL > 0:
+        raise ValueError(
+            f"South left-turn volume = {int(ScountL)} veh/hr (cells J4/J5) but no lane can serve it. "
+            f"Add at least one of: L (cell O8), TL (cell N8), RTL (cell P8), RL (cell Q8). "
+            f"If a shared lane is present, check that its nataz code (row 9) does not block left turns."
+        )
 
-    if SlanesR+SlanesRT+SlanesRTL+SlanesRL+StrafficRTrbin+StrafficRTLrbin+StrafficRLrbin-3==0 and ScountR>0:
-        error="missing south right turn"
-    if SlanesT + SlanesRT + SlanesRTL + SlanesTL+SlanesTL+StrafficRTtbin+StrafficRTLtbin+StrafficTLtbin-3 == 0 and ScountT > 0:
-        error = "missing south through"
-    if SlanesL + SlanesTL + SlanesRTL + SlanesRL+StrafficTLlbin+StrafficRTLlbin+StrafficRLlbin-3 == 0 and ScountL > 0:
-        error= "missing south left turn"
+    if ElanesR+ElanesRT+ElanesRTL+ElanesRL+EtrafficRTrbin+EtrafficRTLrbin+EtrafficRLrbin-3 == 0 and EcountR > 0:
+        raise ValueError(
+            f"East right-turn volume = {int(EcountR)} veh/hr (cells L4/L5) but no lane can serve it. "
+            f"Add at least one of: R (cell S8), RT (cell T8), RTL (cell X8), RL (cell Y8). "
+            f"If a shared lane is present, check that its nataz code (row 9) does not block right turns."
+        )
+    if ElanesT+ElanesRT+ElanesRTL+ElanesTL+EtrafficRTtbin+EtrafficRTLtbin+EtrafficTLtbin-3 == 0 and EcountT > 0:
+        raise ValueError(
+            f"East through volume = {int(EcountT)} veh/hr (cells M4/M5) but no lane can serve it. "
+            f"Add at least one of: T (cell U8), RT (cell T8), RTL (cell X8), TL (cell V8). "
+            f"If a shared lane is present, check that its nataz code (row 9) does not block straight movement."
+        )
+    if ElanesL+ElanesTL+ElanesRTL+ElanesRL+EtrafficTLlbin+EtrafficRTLlbin+EtrafficRLlbin-3 == 0 and EcountL > 0:
+        raise ValueError(
+            f"East left-turn volume = {int(EcountL)} veh/hr (cells N4/N5) but no lane can serve it. "
+            f"Add at least one of: L (cell W8), TL (cell V8), RTL (cell X8), RL (cell Y8). "
+            f"If a shared lane is present, check that its nataz code (row 9) does not block left turns."
+        )
 
-    if ElanesR+ElanesRT+ElanesRTL+ElanesRL+EtrafficRTrbin+EtrafficRTLrbin+EtrafficRLrbin-3==0 and EcountR>0:
-        error= "missing east right turn"
-    if ElanesT + ElanesRT + ElanesRTL + ElanesTL+EtrafficRTtbin+EtrafficRTLtbin+EtrafficTLtbin-3 == 0 and EcountT > 0:
-        error = "missing east through"
-    if ElanesL + ElanesTL + ElanesRTL + ElanesRL+EtrafficTLlbin+EtrafficRTLlbin+EtrafficRLlbin-3 == 0 and EcountL > 0:
-        error="missing east left turn"
-
-    if WlanesR+WlanesRT+WlanesRTL+WlanesRL+WtrafficRTrbin+WtrafficRTLrbin+WtrafficRLrbin-3==0 and WcountR>0:
-        error ="missing west right turn"
-    if WlanesT + WlanesRT + WlanesRTL + WlanesTL+WtrafficRTtbin+WtrafficRTLtbin+WtrafficTLtbin-3 == 0 and WcountT > 0:
-        error ="missing west through"
-    if WlanesL + WlanesTL + WlanesRTL + WlanesRL+WtrafficTLlbin+WtrafficRTLlbin+WtrafficRLlbin-3 == 0 and WcountL > 0:
-        error="missing west left turn"
-    if error !=0:
-        print (error)
-        MessageBox = ctypes.windll.user32.MessageBoxW
-        MessageBox(None, error, 'Phaser error', 0)
-        exit()
+    if WlanesR+WlanesRT+WlanesRTL+WlanesRL+WtrafficRTrbin+WtrafficRTLrbin+WtrafficRLrbin-3 == 0 and WcountR > 0:
+        raise ValueError(
+            f"West right-turn volume = {int(WcountR)} veh/hr (cells P4/P5) but no lane can serve it. "
+            f"Add at least one of: R (cell AA8), RT (cell AB8), RTL (cell AF8), RL (cell AG8). "
+            f"If a shared lane is present, check that its nataz code (row 9) does not block right turns."
+        )
+    if WlanesT+WlanesRT+WlanesRTL+WlanesTL+WtrafficRTtbin+WtrafficRTLtbin+WtrafficTLtbin-3 == 0 and WcountT > 0:
+        raise ValueError(
+            f"West through volume = {int(WcountT)} veh/hr (cells Q4/Q5) but no lane can serve it. "
+            f"Add at least one of: T (cell AC8), RT (cell AB8), RTL (cell AF8), TL (cell AD8). "
+            f"If a shared lane is present, check that its nataz code (row 9) does not block straight movement."
+        )
+    if WlanesL+WlanesTL+WlanesRTL+WlanesRL+WtrafficTLlbin+WtrafficRTLlbin+WtrafficRLlbin-3 == 0 and WcountL > 0:
+        raise ValueError(
+            f"West left-turn volume = {int(WcountL)} veh/hr (cells R4/R5) but no lane can serve it. "
+            f"Add at least one of: L (cell AE8), TL (cell AD8), RTL (cell AF8), RL (cell AG8). "
+            f"If a shared lane is present, check that its nataz code (row 9) does not block left turns."
+        )
 
     prob = LpProblem("wardrop", LpMinimize)
     #משתני תנועה פנימיים. כמה פונים לכל כיוון ממי שנמצא בנתיב
@@ -518,10 +691,16 @@ def b_optimization(volume,lanes,nataz,solver):
     #prob.solve()
     print("Status:", LpStatus[prob.status])
     if LpStatus[prob.status] != "Optimal":
-        error = "solution not optimal (b)"
-        MessageBox = ctypes.windll.user32.MessageBoxW
-        MessageBox(None, error, 'Phaser error', 0)
-        exit()
+        raise ValueError(
+            f"Traffic assignment solver failed (status: {LpStatus[prob.status]}). "
+            f"The lane configuration cannot carry all the specified volumes. "
+            f"Possible causes: "
+            f"(1) A shared lane has a nataz code (row 9) that blocks all movements with volume. "
+            f"(2) An RL lane (right+left, no through) is combined with through volume — "
+            f"RL lanes cannot carry straight-through traffic. "
+            f"(3) Volumes are extremely high relative to the number of lanes. "
+            f"Review the lane layout (row 8) and nataz codes (row 9)."
+        )
 
    # for v in prob.variables():
      #  if v.varValue > 1:

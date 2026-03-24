@@ -125,21 +125,74 @@ def main(queue_params=None):
                 junc_nataz += l
 
             instructions = [suppress_null(ws.cell(row=36 + i, column=22).value) for i in range(11)]
+
+            # ---- Inflation factor check (cell V46) ----
+            _raw_inflation = ws.cell(row=46, column=22).value  # read before suppress_null
+            if _raw_inflation is None:
+                # blank cell: default to 1.0 (no adjustment)
+                instructions[10] = 1.0
+            else:
+                _inflation = _raw_inflation
+                if _inflation <= 0:
+                    raise ValueError(
+                        f"Invalid inflation factor in cell V46: value = {_inflation}. "
+                        f"The inflation factor must be a positive number greater than 0 "
+                        f"(use 1.0 for no adjustment, e.g. 1.1 for +10%). "
+                        f"A value of 0 or negative would zero out or invert all traffic volumes."
+                    )
+                instructions[10] = _inflation
+
+            # ---- Apply inflation and validate volume cells ----
+            _vol_cells = ['D4','E4','F4','H4','I4','J4','L4','M4','N4','P4','Q4','R4']
+            _vol_names = ['North right','North through','North left',
+                          'South right','South through','South left',
+                          'East right', 'East through', 'East left',
+                          'West right', 'West through', 'West left']
             for i in range(12):
                 try:
                     volume[i] = round(volume[i] * instructions[10], 0)
-                except:
-                    raise ValueError("volume must be put as numbers")
+                except Exception:
+                    _row = 4 + run
+                    raise ValueError(
+                        f"Non-numeric volume value in {_vol_names[i]} "
+                        f"(cell {_vol_cells[i][0]}{_row}). "
+                        f"All traffic volume cells in rows 4-5 must contain numbers. "
+                        f"Check the range D4:R5."
+                    )
+                if volume[i] < 0:
+                    _row = 4 + run
+                    raise ValueError(
+                        f"Negative volume after inflation in {_vol_names[i]} "
+                        f"(cell {_vol_cells[i][0]}{_row}): value = {int(volume[i])}. "
+                        f"Check the raw volume (rows 4-5) and the inflation factor (cell V46). "
+                        f"Both must be non-negative."
+                    )
+
             rakal_instructions = [suppress_null(ws.cell(row=36 + i, column=26).value) for i in range(6)]
+            _rakal_keys = ['lrt_enabled (Z36)', 'cycle_time (Z37)', 'lost_time (Z38)',
+                           'headway (Z39)', 'mcu (Z40)', 'gen_lost_time (Z41)']
             for i in range(6):
                 if i == 4 and rakal_instructions[i] == 1.125: i = i + 1
                 if isinstance(rakal_instructions[i], int) == False:
-                    raise ValueError("rakal instructions table must be integers")
+                    raise ValueError(
+                        f"Non-integer value in LRT parameters table, field {_rakal_keys[i]}: "
+                        f"value = {rakal_instructions[i]!r}. "
+                        f"All values in column Z rows 36-41 must be integers "
+                        f"(exception: mcu in Z40 may be 1.125)."
+                    )
+            _instr_keys = ['capacity (V36)', 'nlsl (V37)', 'elwl (V38)', 'img5 (V39)',
+                           'img6 (V40)', 'geo_ns (V41)', 'geo_ew (V42)', 'optimize (V43)',
+                           'lrt_orig_ns (V44)', 'lrt_orig_ew (V45)', 'inflation (V46)']
             for i in range(11):
                 # אם בעתיד מגדילים את הריינג' לשנות את פקדות הברייק שמתחת
                 if i == 10 and isinstance(instructions[i], float) == True: break
                 if isinstance(instructions[i], int) == False:
-                    raise ValueError("instructions table must be integers")
+                    raise ValueError(
+                        f"Non-integer value in parameters table, field {_instr_keys[i]}: "
+                        f"value = {instructions[i]!r}. "
+                        f"All values in column V rows 36-45 must be integers "
+                        f"(V46 inflation may be a decimal)."
+                    )
 
             # instructionscheck = [s for s in rakal_instructions if s.isdigit()]
 
