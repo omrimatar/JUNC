@@ -441,7 +441,7 @@ with col_diagram:
 # ── Right column: tabbed data-entry ──────────────────────────────────────────
 with col_inputs:
     tab_vol, tab_lanes, tab_nataz, tab_settings = st.tabs(
-        ["🚗 Volumes", "🛣 Lanes", "🚫 Restrictions", "⚙ Settings"]
+        ["🚗 Volumes", "🛣 Lanes", "🚌 Nataz", "⚙ Settings"]
     )
 
     col_cfg = {d: _int_col_cfg(_DIR_LABELS[d]) for d in DIRECTIONS}
@@ -498,10 +498,19 @@ with col_inputs:
             "RTL = shared right+through+left | RL = shared right+left"
         )
 
-    # ── Nataz (restrictions) tab ──────────────────────────────────────────────
+    # ── Nataz tab ─────────────────────────────────────────────────────────────
     with tab_nataz:
-        st.markdown(
-            "**Turn restrictions (Nataz)** — 1 = allowed, 0 = not allowed."
+        st.markdown("**Nataz (נת״צ) — Public Transit Lane Designations**")
+        st.caption(
+            "Use this table to mark which lanes (or lane movements) are designated as bus lanes. "
+            "This controls how lanes appear in the output PowerPoint — bus lanes are drawn differently. "
+            "As a side effect, routing treats bus-designated movements as unavailable to private cars.\n\n"
+            "**Codes per lane type:**\n"
+            "- **R / T / L** (simple lanes): `1` = full nataz (entire lane is bus-only), `0` = no nataz.\n"
+            "- **RT**: `0` = none · `1` = full · `2` = nataz on straight only · `3` = nataz on right only\n"
+            "- **TL**: `0` = none · `1` = full · `3` = nataz on left only · `4` = nataz on straight only\n"
+            "- **RL**: `0` = none · `1` = full · `2` = nataz on left only · `4` = nataz on right only\n"
+            "- **RTL**: `0`–`7` bitmask — `1`=full · `2`=block R · `3`=block T · `4`=block L · `5`=block R+T · `6`=block R+L · `7`=block T+L"
         )
         nataz_df = _make_lane_df("nataz")
         edited_nataz = st.data_editor(
