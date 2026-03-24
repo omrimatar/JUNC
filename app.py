@@ -221,6 +221,36 @@ def _int_col_cfg(label: str):
 # ---------------------------------------------------------------------------
 with st.sidebar:
 
+    # ── Version badge ─────────────────────────────────────────────────────────
+    st.markdown(
+        """
+        <div style="
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            border: 1px solid #e94560;
+            border-radius: 10px;
+            padding: 10px 16px 8px 16px;
+            margin-bottom: 18px;
+            text-align: center;
+        ">
+            <span style="
+                font-size: 11px;
+                font-weight: 600;
+                letter-spacing: 3px;
+                color: #a0a8b8;
+                text-transform: uppercase;
+            ">JUNC Analyzer</span><br>
+            <span style="
+                font-size: 26px;
+                font-weight: 800;
+                letter-spacing: 1px;
+                color: #e94560;
+                line-height: 1.2;
+            ">v 1.1</span>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
     # ── Fonts ────────────────────────────────────────────────────────────────
     st.header("Fonts")
     st.caption(
