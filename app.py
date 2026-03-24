@@ -727,6 +727,8 @@ with st.expander("📏 Queue Length — Poisson Method", expanded=False):
             "Basic lost capacity (veh/h)",
             value=int(qp.get("basic_lost_capacity", 200)),
             min_value=0, step=50, key="q_blc",
+            disabled=not qp["discard_green_time"],
+            help="Only used when Discard green time is checked.",
         )
     with qc2:
         qp["poisson"] = st.number_input(
