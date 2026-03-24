@@ -855,10 +855,10 @@ with st.expander("📏 Queue Length — Poisson Method", expanded=False):
 
 
 # ── 2. HCM Signal Delay & Level of Service ───────────────────────────────────
-with st.expander("⏱ HCM Signal Delay & Level of Service", expanded=False):
+with st.expander("⏱ HCM Signal Delay & Level of Service (Experimental)", expanded=False):
     st.caption(
         "Uses volumes from the form above, green times, and shared HCM parameters. "
-        "d1 = uniform delay (Webster), d2 = overflow delay (HCM 6th ed.)."
+        "d1 = uniform delay (Webster), d2 = overflow delay — HCM 7th ed. methodology."
     )
     _hp_delay = dict(hp)
     _pf_col, _ = st.columns([2, 4])
@@ -926,10 +926,10 @@ with st.expander("⏱ HCM Signal Delay & Level of Service", expanded=False):
 
 
 # ── 3. HCM 95th Percentile Queue ─────────────────────────────────────────────
-with st.expander("📊 HCM 95th Percentile Back-of-Queue", expanded=False):
+with st.expander("📊 HCM 95th Percentile Back-of-Queue (Experimental)", expanded=False):
     st.caption(
         "Uses volumes, green times, and shared HCM parameters. "
-        "Nq = Nq1 (uniform) + Nq2 (overflow).  Q95 = Nq + 1.65·√Nq."
+        "Nq = Nq1 (uniform) + Nq2 (overflow).  Q95 = Nq + 1.65·√Nq  — HCM 7th ed. methodology."
     )
 
     if st.button("📊 Calculate 95th Queue", key="btn_hcm_q95"):
