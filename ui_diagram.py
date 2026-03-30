@@ -64,6 +64,18 @@ _DIR_UNIT = {"N": (0, 1), "S": (0, -1), "E": (1, 0), "W": (-1, 0)}
 _STREET_COLOR = "#ffe082"
 _DIR_COLOR    = "#8888aa"
 
+# Lane type colours (right → left order)
+_LANE_ORDER = ["R", "RT", "T", "TL", "L", "RTL", "RL"]
+_LC = {
+    "R":   "#66bb6a",
+    "RT":  "#9dd474",
+    "T":   "#4fc3f7",
+    "TL":  "#66c9c0",
+    "L":   "#ffa726",
+    "RTL": "#c0b0f0",
+    "RL":  "#b0d880",
+}
+
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -89,6 +101,46 @@ def _bar_len(vol, vmax):
     if not vol:
         return 0.0
     return max(_MIN_LEN, (vol / vmax) * _MAX_LEN)
+
+
+# ── Lane stripes ──────────────────────────────────────────────────────────────
+
+def _draw_lane_stripes(ax, state, d):
+    """Draw lane dividers and per-lane type labels for one arm."""
+    lanes_d = state.get("lanes", {}).get(d, {})
+    lane_list = []
+    for lt in _LANE_ORDER:
+        for _ in range(int(lanes_d.get(lt, 0) or 0)):
+            lane_list.append(lt)
+    n = len(lane_list)
+    if n == 0:
+        return
+
+    dx, dy = _DIR_UNIT[d]
+    lane_w = 2 * _ROAD_HW / n
+
+    # Subtle divider lines between lanes
+    for i in range(1, n):
+        perp = _ROAD_HW - lane_w * i
+        if dy != 0:
+            y0, y1 = (_BOX, _EXTENT) if dy > 0 else (-_EXTENT, -_BOX)
+            ax.plot([perp, perp], [y0, y1],
+                    color=_DIVIDER, lw=0.55, ls="--", alpha=0.55, zorder=3)
+        else:
+            x0, x1 = (_BOX, _EXTENT) if dx > 0 else (-_EXTENT, -_BOX)
+            ax.plot([x0, x1], [perp, perp],
+                    color=_DIVIDER, lw=0.55, ls="--", alpha=0.55, zorder=3)
+
+    # Lane type label just past the stop line, centred in each lane strip
+    label_dist = _BOX + 0.32
+    for i, lt in enumerate(lane_list):
+        perp = _ROAD_HW - lane_w * (i + 0.5)
+        color = _LC.get(lt, "#aaaaaa")
+        lx, ly = (perp, label_dist * dy) if dy != 0 else (label_dist * dx, perp)
+        ax.text(lx, ly, lt,
+                color=color, fontsize=4.5, ha="center", va="center",
+                fontweight="bold", zorder=8,
+                bbox=dict(boxstyle="round,pad=0.08", fc=_BG, ec=color, lw=0.5, alpha=0.92))
 
 
 # ── Per-arm bar drawing ───────────────────────────────────────────────────────
@@ -224,25 +276,14 @@ def draw_junction(state: dict) -> plt.Figure:
     ax.plot([_BOX,  _EXTENT],   [0, 0], **dash)
     ax.plot([-_EXTENT, -_BOX], [0, 0], **dash)
 
+    # ── Lane stripes (drawn before bars so bars sit on top) ───────────────────
+    for d in DIRECTIONS:
+        _draw_lane_stripes(ax, state, d)
+
     # ── Volume bars ───────────────────────────────────────────────────────────
     vmax = _global_max(state)
     for d in DIRECTIONS:
         _draw_arm(ax, state, d, vmax)
-
-    # ── Lane count badges ─────────────────────────────────────────────────────
-    lanes = state.get("lanes", {})
-    for d in DIRECTIONS:
-        dx, dy = _DIR_UNIT[d]
-        total_lanes = sum(lanes.get(d, {}).values())
-        if total_lanes > 0:
-            # Place badge in the "quiet" corner of the arm (opposite the R bar)
-            bx = dx * 2.3 + dy * (_ROAD_HW - 0.28)
-            by = dy * 2.3 + dx * (_ROAD_HW - 0.28)
-            ax.text(bx, by, f"{total_lanes}L",
-                    color="#ccccee", fontsize=5.5, ha="center", va="center",
-                    bbox=dict(boxstyle="round,pad=0.18", fc="#33335a",
-                              ec="#777", lw=0.7, alpha=0.85),
-                    zorder=6)
 
     # ── Street names ──────────────────────────────────────────────────────────
     streets = state.get("streets", {})

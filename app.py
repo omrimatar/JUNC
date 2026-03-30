@@ -221,6 +221,36 @@ def _int_col_cfg(label: str):
 # ---------------------------------------------------------------------------
 with st.sidebar:
 
+    # ── Version badge ─────────────────────────────────────────────────────────
+    st.markdown(
+        """
+        <div style="
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            border: 1px solid #e94560;
+            border-radius: 10px;
+            padding: 10px 16px 8px 16px;
+            margin-bottom: 18px;
+            text-align: center;
+        ">
+            <span style="
+                font-size: 11px;
+                font-weight: 600;
+                letter-spacing: 3px;
+                color: #a0a8b8;
+                text-transform: uppercase;
+            ">JUNC Analyzer</span><br>
+            <span style="
+                font-size: 26px;
+                font-weight: 800;
+                letter-spacing: 1px;
+                color: #e94560;
+                line-height: 1.2;
+            ">v 1.11</span>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
     # ── Fonts ────────────────────────────────────────────────────────────────
     st.header("Fonts")
     st.caption(
@@ -359,6 +389,9 @@ with st.sidebar:
                 ZIP_MIME,
                 use_container_width=True,
             )
+        _warnings = (st.session_state.extra_data or {}).get("warnings", [])
+        for _w in _warnings:
+            st.warning(_w)
         _log = (st.session_state.extra_data or {}).get("log", "")
         if _log.strip():
             with st.expander("Analysis log"):
@@ -411,7 +444,7 @@ with col_diagram:
 # ── Right column: tabbed data-entry ──────────────────────────────────────────
 with col_inputs:
     tab_vol, tab_lanes, tab_nataz, tab_settings = st.tabs(
-        ["🚗 Volumes", "🛣 Lanes", "🚫 Restrictions", "⚙ Settings"]
+        ["🚗 Volumes", "🛣 Lanes", "🚌 Nataz", "⚙ Settings"]
     )
 
     col_cfg = {d: _int_col_cfg(_DIR_LABELS[d]) for d in DIRECTIONS}
@@ -468,10 +501,24 @@ with col_inputs:
             "RTL = shared right+through+left | RL = shared right+left"
         )
 
-    # ── Nataz (restrictions) tab ──────────────────────────────────────────────
+    # ── Nataz tab ─────────────────────────────────────────────────────────────
     with tab_nataz:
-        st.markdown(
-            "**Turn restrictions (Nataz)** — 1 = allowed, 0 = not allowed."
+        st.markdown("**Nataz (נת״צ) — Public Transit Lane Designations**")
+        st.caption(
+            "Enter the number of dedicated bus lanes for each simple lane type (R / T / L). "
+            "For complex lanes (RT, TL, RL, RTL), enter a code indicating which movement "
+            "within that lane is designated for public transit:\n\n"
+            "| Code | Movement |\n"
+            "|------|----------|\n"
+            "| `1`  | Entire lane (all movements) |\n"
+            "| `2`  | Right only |\n"
+            "| `3`  | Through only |\n"
+            "| `4`  | Left only |\n"
+            "| `5`  | Right + Through |\n"
+            "| `6`  | Right + Left |\n"
+            "| `7`  | Through + Left |\n\n"
+            "Nataz designations are shown in the output PowerPoint. "
+            "Bus-only movements are also excluded from private-car routing."
         )
         nataz_df = _make_lane_df("nataz")
         edited_nataz = st.data_editor(
@@ -660,74 +707,11 @@ if run_clicked or st.session_state.auto_run:
 # ---------------------------------------------------------------------------
 # ── ADDITIONAL ANALYSIS ─────────────────────────────────────────────────────
 # ---------------------------------------------------------------------------
-st.divider()
-st.header("Additional Analysis")
-st.caption(
-    "Queue Length recalculation requires a prior Analysis run. "
-    "HCM Delay and 95th Queue only need volumes and green times."
-)
-
 _dir_labels = {"N": "North", "S": "South", "E": "East", "W": "West"}
-hp = st.session_state.hcm_params
-
-# ── Shared inputs for HCM analyses ───────────────────────────────────────────
-_aa_left, _aa_right = st.columns([5, 5], gap="large")
-
-with _aa_left:
-    st.markdown("**Effective green time per approach (seconds)**")
-    gt = st.session_state.hcm_green_times
-    _gt_cols = st.columns(4)
-    for _col, _d in zip(_gt_cols, ["N", "S", "E", "W"]):
-        with _col:
-            st.caption(f"**{_dir_labels[_d]}**")
-            gt[_d]["am"] = st.number_input(
-                "AM (s)", value=int(gt[_d]["am"]),
-                min_value=0, max_value=max(10, int(hp.get("cycle_time", 120)) - 1),
-                step=1, key=f"gt_{_d}_am",
-            )
-            gt[_d]["pm"] = st.number_input(
-                "PM (s)", value=int(gt[_d]["pm"]),
-                min_value=0, max_value=max(10, int(hp.get("cycle_time", 120)) - 1),
-                step=1, key=f"gt_{_d}_pm",
-            )
-
-with _aa_right:
-    st.markdown("**Shared HCM parameters**")
-    _p1, _p2, _p3 = st.columns(3)
-    with _p1:
-        hp["cycle_time"] = st.number_input(
-            "Cycle time (s)", value=int(hp.get("cycle_time", 120)),
-            min_value=10, step=5, key="hcm_ct",
-        )
-        hp["saturation_flow"] = st.number_input(
-            "Sat. flow (veh/h/lane)", value=int(hp.get("saturation_flow", 1800)),
-            min_value=100, step=100, key="hcm_sf",
-        )
-    with _p2:
-        hp["T"] = st.number_input(
-            "Analysis period T (hr)", value=float(hp.get("T", 0.25)),
-            min_value=0.05, max_value=1.0, step=0.05, format="%.2f", key="hcm_T",
-        )
-        hp["k"] = st.number_input(
-            "k factor", value=float(hp.get("k", 0.5)),
-            min_value=0.04, max_value=0.5, step=0.01, format="%.2f", key="hcm_k",
-            help="Incremental delay factor: 0.5 pre-timed, 0.25 actuated.",
-        )
-    with _p3:
-        hp["I"] = st.number_input(
-            "Upstream filter I", value=float(hp.get("I", 1.0)),
-            min_value=0.0, max_value=1.0, step=0.1, format="%.1f", key="hcm_I",
-        )
-        hp["l"] = st.number_input(
-            "Car length l (m)", value=int(hp.get("l", 7)),
-            min_value=1, step=1, key="hcm_l",
-            help="Used for 95th percentile queue length in metres.",
-        )
 
 st.divider()
 
-
-# ── 1. Queue Length — Poisson Method ─────────────────────────────────────────
+# ── Queue Length — Poisson Method ────────────────────────────────────────────
 with st.expander("📏 Queue Length — Poisson Method", expanded=False):
     has_run = st.session_state.extra_data is not None
     if not has_run:
@@ -746,6 +730,8 @@ with st.expander("📏 Queue Length — Poisson Method", expanded=False):
             "Basic lost capacity (veh/h)",
             value=int(qp.get("basic_lost_capacity", 200)),
             min_value=0, step=50, key="q_blc",
+            disabled=not qp["discard_green_time"],
+            help="Only used when Discard green time is checked.",
         )
     with qc2:
         qp["poisson"] = st.number_input(
@@ -824,11 +810,71 @@ with st.expander("📏 Queue Length — Poisson Method", expanded=False):
         )
 
 
-# ── 2. HCM Signal Delay & Level of Service ───────────────────────────────────
-with st.expander("⏱ HCM Signal Delay & Level of Service", expanded=False):
+# ── HCM Analysis ─────────────────────────────────────────────────────────────
+st.divider()
+st.header("HCM Analysis")
+st.caption("HCM 7th edition signal delay and queue calculations. Requires volumes and green times only.")
+
+hp = st.session_state.hcm_params
+
+_aa_left, _aa_right = st.columns([5, 5], gap="large")
+
+with _aa_left:
+    st.markdown("**Effective green time per approach (seconds)**")
+    gt = st.session_state.hcm_green_times
+    _gt_cols = st.columns(4)
+    for _col, _d in zip(_gt_cols, ["N", "S", "E", "W"]):
+        with _col:
+            st.caption(f"**{_dir_labels[_d]}**")
+            gt[_d]["am"] = st.number_input(
+                "AM (s)", value=int(gt[_d]["am"]),
+                min_value=0, max_value=max(10, int(hp.get("cycle_time", 120)) - 1),
+                step=1, key=f"gt_{_d}_am",
+            )
+            gt[_d]["pm"] = st.number_input(
+                "PM (s)", value=int(gt[_d]["pm"]),
+                min_value=0, max_value=max(10, int(hp.get("cycle_time", 120)) - 1),
+                step=1, key=f"gt_{_d}_pm",
+            )
+
+with _aa_right:
+    st.markdown("**Shared HCM parameters**")
+    _p1, _p2, _p3 = st.columns(3)
+    with _p1:
+        hp["cycle_time"] = st.number_input(
+            "Cycle time (s)", value=int(hp.get("cycle_time", 120)),
+            min_value=10, step=5, key="hcm_ct",
+        )
+        hp["saturation_flow"] = st.number_input(
+            "Sat. flow (veh/h/lane)", value=int(hp.get("saturation_flow", 1800)),
+            min_value=100, step=100, key="hcm_sf",
+        )
+    with _p2:
+        hp["T"] = st.number_input(
+            "Analysis period T (hr)", value=float(hp.get("T", 0.25)),
+            min_value=0.05, max_value=1.0, step=0.05, format="%.2f", key="hcm_T",
+        )
+        hp["k"] = st.number_input(
+            "k factor", value=float(hp.get("k", 0.5)),
+            min_value=0.04, max_value=0.5, step=0.01, format="%.2f", key="hcm_k",
+            help="Incremental delay factor: 0.5 pre-timed, 0.25 actuated.",
+        )
+    with _p3:
+        hp["I"] = st.number_input(
+            "Upstream filter I", value=float(hp.get("I", 1.0)),
+            min_value=0.0, max_value=1.0, step=0.1, format="%.1f", key="hcm_I",
+        )
+        hp["l"] = st.number_input(
+            "Car length l (m)", value=int(hp.get("l", 7)),
+            min_value=1, step=1, key="hcm_l",
+            help="Used for 95th percentile queue length in metres.",
+        )
+
+# ── HCM Signal Delay & Level of Service ──────────────────────────────────────
+with st.expander("⏱ HCM Signal Delay & Level of Service (Experimental)", expanded=False):
     st.caption(
         "Uses volumes from the form above, green times, and shared HCM parameters. "
-        "d1 = uniform delay (Webster), d2 = overflow delay (HCM 6th ed.)."
+        "d1 = uniform delay (Webster), d2 = overflow delay — HCM 7th ed. methodology."
     )
     _hp_delay = dict(hp)
     _pf_col, _ = st.columns([2, 4])
@@ -895,11 +941,11 @@ with st.expander("⏱ HCM Signal Delay & Level of Service", expanded=False):
         )
 
 
-# ── 3. HCM 95th Percentile Queue ─────────────────────────────────────────────
-with st.expander("📊 HCM 95th Percentile Back-of-Queue", expanded=False):
+# ── HCM 95th Percentile Queue ────────────────────────────────────────────────
+with st.expander("📊 HCM 95th Percentile Back-of-Queue (Experimental)", expanded=False):
     st.caption(
         "Uses volumes, green times, and shared HCM parameters. "
-        "Nq = Nq1 (uniform) + Nq2 (overflow).  Q95 = Nq + 1.65·√Nq."
+        "Nq = Nq1 (uniform) + Nq2 (overflow).  Q95 = Nq + 1.65·√Nq  — HCM 7th ed. methodology."
     )
 
     if st.button("📊 Calculate 95th Queue", key="btn_hcm_q95"):

@@ -37,6 +37,7 @@ class Diagram:
         # the different class in Diagram and Table.
         self.__ExcelProperties = xlprop  # A list with info about the creator of the volume_calculator excel file. It is
         # used in the ID file
+        self.WARNINGS = []  # Collects non-fatal warnings to surface in the UI
 
     @property
     def NO(self):
@@ -220,6 +221,21 @@ class Diagram:
         west = str(self.WE.empty_direction())
         dir_exist = north + south + east + west
         types = {'1111': 1, '1110': 2, '0111': 3, '1101': 4, '1011': 5}
+        if dir_exist not in types:
+            # Fewer than 3 arms: add the first empty direction to reach a valid 3-arm config
+            dir_list = list(dir_exist)
+            for i in range(4):
+                if dir_list[i] == '0':
+                    dir_list[i] = '1'
+                    candidate = ''.join(dir_list)
+                    if candidate in types:
+                        dir_exist = candidate
+                        break
+            self.WARNINGS.append(
+                "אזהרה: הצומת הוגדר עם פחות משלוש זרועות. "
+                "חישוב הדיאגרמה דורש לפחות 3 זרועות. "
+                "זרוע וירטואלית נוספה אוטומטית לצורך החישוב — יש לוודא את נכונות הפלט."
+            )
         if self.LRT_INF.LRT_Dir > 0:
             lrt_type = 1
         else:

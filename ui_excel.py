@@ -64,16 +64,14 @@ def default_state() -> dict:
         volumes[period] = {d: {m: 0 for m in MOVEMENTS} for d in DIRECTIONS}
 
     lanes = {d: {lt: 0 for lt in LANE_TYPES} for d in DIRECTIONS}
-    for d in DIRECTIONS:
-        lanes[d]["T"] = 1        # default: one through-lane per arm
 
     nataz = {d: {lt: 0 for lt in LANE_TYPES} for d in DIRECTIONS}
 
     instructions = {
         "capacity":   1800,
-        "nlsl":       0,
-        "elwl":       0,
-        "img5":       0,
+        "nlsl":       1,
+        "elwl":       1,
+        "img5":       1,
         "img6":       0,
         "geo_ns":     3,
         "geo_ew":     3,

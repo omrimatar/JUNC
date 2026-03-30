@@ -7,7 +7,7 @@ Public API (imported by app.py and pipeline.py):
       Formatted .xlsx summarising Poisson queue-length results.
 
   compute_hcm_delay(state, green_times, params) → dict
-      HCM 6th edition uniform + overflow signal delay and LOS per approach.
+      HCM 7th edition uniform + overflow signal delay and LOS per approach.
 
   compute_hcm_queue95(state, green_times, params) → dict
       HCM 95th-percentile back-of-queue per approach.
@@ -178,7 +178,7 @@ def make_queue_excel(car_length_dict: dict, queue_params: dict) -> bytes:
 
 def compute_hcm_delay(state: dict, green_times: dict, params: dict) -> dict:
     """
-    HCM 6th edition uniform + overflow signal delay and LOS per approach.
+    HCM 7th edition uniform + overflow signal delay and LOS per approach.
 
     Parameters
     ----------
