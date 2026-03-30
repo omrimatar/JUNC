@@ -389,6 +389,9 @@ with st.sidebar:
                 ZIP_MIME,
                 use_container_width=True,
             )
+        _warnings = (st.session_state.extra_data or {}).get("warnings", [])
+        for _w in _warnings:
+            st.warning(_w)
         _log = (st.session_state.extra_data or {}).get("log", "")
         if _log.strip():
             with st.expander("Analysis log"):

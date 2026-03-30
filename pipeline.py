@@ -96,6 +96,7 @@ def run_pipeline(xlsx_file, queue_params=None):
                 **phaser_extra,
                 "car_length_dict": car_length_dict,
                 "log": captured.getvalue(),
+                "warnings": junc_diagram.WARNINGS,
             }
             return diagram_bytes, table_bytes, id_bytes, queue_bytes, extra_data
 
