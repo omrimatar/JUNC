@@ -245,7 +245,7 @@ with st.sidebar:
                 letter-spacing: 1px;
                 color: #e94560;
                 line-height: 1.2;
-            ">v 1.1</span>
+            ">v 1.11</span>
         </div>
         """,
         unsafe_allow_html=True,
