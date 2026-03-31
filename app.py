@@ -802,7 +802,12 @@ with st.expander("📏 Queue Length — Poisson Method", expanded=False):
         else:
             st.info("All queue lengths are zero.")
 
-        _qxl = make_queue_excel(_cd, _qp_used)
+        _ed = st.session_state.extra_data or {}
+        _qxl = make_queue_excel(
+            _cd, _qp_used,
+            car_sum_am=_ed.get("car_sum_am"),
+            car_sum_pm=_ed.get("car_sum_pm"),
+        )
         st.download_button(
             "⬇ Download Queue Results",
             _qxl, "QueueLengths.xlsx", XLSX_MIME,

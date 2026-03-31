@@ -90,7 +90,11 @@ def run_pipeline(xlsx_file, queue_params=None):
                 junc_diagram, diagram_bytes = run_diagram_pipeline(phsr_list, excel_props)
                 junc_table,   table_bytes   = run_table_pipeline(junc_diagram)
                 id_bytes                    = run_id_pipeline(junc_table, junc_diagram)
-                queue_bytes                 = make_queue_excel(car_length_dict, queue_params)
+                queue_bytes                 = make_queue_excel(
+                    car_length_dict, queue_params,
+                    car_sum_am=phaser_extra.get("car_sum_am"),
+                    car_sum_pm=phaser_extra.get("car_sum_pm"),
+                )
 
             extra_data = {
                 **phaser_extra,

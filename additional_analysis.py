@@ -68,10 +68,13 @@ def _total_lanes(lane_dict: dict) -> int:
 
 # ── Poisson Queue Excel ────────────────────────────────────────────────────────
 
-def make_queue_excel(car_length_dict: dict, queue_params: dict) -> bytes:
+def make_queue_excel(car_length_dict: dict, queue_params: dict,
+                     car_sum_am=None, car_sum_pm=None) -> bytes:
     """Return a formatted .xlsx file summarising Poisson queue-length results."""
     import openpyxl as xl
     from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+
+    discard_green = queue_params.get("discard_green_time", False)
 
     wb = xl.Workbook()
     ws = wb.active
@@ -81,7 +84,6 @@ def make_queue_excel(car_length_dict: dict, queue_params: dict) -> bytes:
     title_font = Font(bold=True, size=14)
     hdr_font   = Font(bold=True, size=11)
     param_font = Font(italic=True, size=10, color="555555")
-    zero_font  = Font(color="BBBBBB", size=10)
     data_font  = Font(size=10)
     bold_font  = Font(bold=True, size=10)
 
@@ -98,31 +100,40 @@ def make_queue_excel(car_length_dict: dict, queue_params: dict) -> bytes:
     border = Border(left=thin, right=thin, top=thin, bottom=thin)
     center = Alignment(horizontal="center", vertical="center")
 
+    has_volumes = (car_sum_am is not None and car_sum_pm is not None)
+    n_data_cols = 5 if has_volumes else 3  # Dir, Movement, [Vol AM, Vol PM,] Queue
+    last_col_letter = chr(64 + n_data_cols)
+
     ws.column_dimensions["A"].width = 13
-    ws.column_dimensions["B"].width = 13
-    ws.column_dimensions["C"].width = 24
-    ws.column_dimensions["D"].width = 24
-    ws.column_dimensions["E"].width = 18
+    ws.column_dimensions["B"].width = 24
+    if has_volumes:
+        ws.column_dimensions["C"].width = 16
+        ws.column_dimensions["D"].width = 16
+        ws.column_dimensions["E"].width = 18
+    else:
+        ws.column_dimensions["C"].width = 18
 
     row = 1
-    ws.merge_cells(f"A{row}:E{row}")
+    ws.merge_cells(f"A{row}:{last_col_letter}{row}")
     c = ws.cell(row, 1, "Queue Length Analysis — JUNC")
     c.font = title_font
     c.alignment = center
     ws.row_dimensions[row].height = 24
     row += 2
 
-    ws.merge_cells(f"A{row}:E{row}")
+    ws.merge_cells(f"A{row}:{last_col_letter}{row}")
     ws.cell(row, 1, "Calculation parameters").font = hdr_font
     row += 1
 
-    param_rows = [
-        ("Discard green time",         queue_params.get("discard_green_time", False)),
-        ("Basic lost capacity (veh/h)", queue_params.get("basic_lost_capacity", 200)),
-        ("Poisson percentile",          queue_params.get("poisson", 0.95)),
-        ("Car length — l (m)",          queue_params.get("l", 7)),
-        ("Peak hour factor — PHF",      queue_params.get("phf", 0.9)),
-        ("Cycle time (s)",              queue_params.get("cycle_time", 120)),
+    param_rows = []
+    if discard_green:
+        param_rows.append(("Discard green time",         True))
+        param_rows.append(("Basic lost capacity (veh/h)", queue_params.get("basic_lost_capacity", 200)))
+    param_rows += [
+        ("Poisson percentile",  queue_params.get("poisson", 0.95)),
+        ("Car length — l (m)",  queue_params.get("l", 7)),
+        ("Peak hour factor — PHF", queue_params.get("phf", 0.9)),
+        ("Cycle time (s)",      queue_params.get("cycle_time", 120)),
     ]
     for label, val in param_rows:
         ws.cell(row, 1, label).font = param_font
@@ -132,7 +143,10 @@ def make_queue_excel(car_length_dict: dict, queue_params: dict) -> bytes:
         row += 1
     row += 1
 
-    headers = ["Direction", "Direction (HE)", "Movement", "Movement (HE)", "Queue Length (m)"]
+    headers = ["Direction", "Movement"]
+    if has_volumes:
+        headers += ["Volume AM (veh/h)", "Volume PM (veh/h)"]
+    headers.append("Queue Length (m)")
     for col, h in enumerate(headers, 1):
         c = ws.cell(row, col, h)
         c.font      = Font(bold=True, size=11, color="FFFFFF")
@@ -140,33 +154,33 @@ def make_queue_excel(car_length_dict: dict, queue_params: dict) -> bytes:
         c.alignment = center
         c.border    = border
     ws.row_dimensions[row].height = 18
+    hdr_row = row
     row += 1
 
-    for direction in ["N", "S", "E", "W"]:
+    for dir_idx, direction in enumerate(["N", "S", "E", "W"]):
         fill = dir_fill[direction]
-        for movement in _MOVEMENTS:
+        for mov_idx, movement in enumerate(_MOVEMENTS):
             key    = f"{direction}{movement}_length"
             length = car_length_dict.get(key, 0)
-            is_zero = (length == 0)
-            font_to_use = zero_font if is_zero else data_font
-            cells = [
-                ws.cell(row, 1, _DIR_EN[direction]),
-                ws.cell(row, 2, _DIR_HE[direction]),
-                ws.cell(row, 3, _MOVE_EN[movement]),
-                ws.cell(row, 4, _MOVE_HE[movement]),
-                ws.cell(row, 5, length if not is_zero else "—"),
-            ]
-            for c in cells:
+            if length == 0:
+                continue  # skip movements not present in the junction
+            flat_idx = dir_idx * len(_MOVEMENTS) + mov_idx
+            vol_am = car_sum_am[flat_idx] if has_volumes else None
+            vol_pm = car_sum_pm[flat_idx] if has_volumes else None
+            row_values = [_DIR_EN[direction], _MOVE_EN[movement]]
+            if has_volumes:
+                row_values += [vol_am if vol_am else "—", vol_pm if vol_pm else "—"]
+            row_values.append(length)
+            for col, val in enumerate(row_values, 1):
+                c = ws.cell(row, col, val)
                 c.fill = fill
-                c.font = font_to_use
+                c.font = bold_font if col == len(row_values) else data_font
                 c.border = border
                 c.alignment = center
-            if not is_zero:
-                ws.cell(row, 5).font = bold_font
             row += 1
 
-    hdr_row = row - 4 * len(_MOVEMENTS) - 1
-    ws.auto_filter.ref = f"A{hdr_row}:E{row - 1}"
+    if row > hdr_row + 1:
+        ws.auto_filter.ref = f"A{hdr_row}:{last_col_letter}{row - 1}"
 
     buf = BytesIO()
     wb.save(buf)
