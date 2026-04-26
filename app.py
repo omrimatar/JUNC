@@ -4,6 +4,7 @@ app.py — JUNC Streamlit UI (full form + live junction schematic).
 Run with:  streamlit run app.py
 """
 
+import json
 from io import BytesIO
 from pathlib import Path
 
@@ -183,6 +184,9 @@ if "auto_run" not in st.session_state:
 if "last_imported_file_id" not in st.session_state:
     st.session_state.last_imported_file_id = None
 
+if "last_imported_json_id" not in st.session_state:
+    st.session_state.last_imported_json_id = None
+
 if "full_zip" not in st.session_state:
     st.session_state.full_zip = None
 
@@ -245,7 +249,7 @@ with st.sidebar:
                 letter-spacing: 1px;
                 color: #e94560;
                 line-height: 1.2;
-            ">v 1.12</span>
+            ">v 1.13</span>
         </div>
         """,
         unsafe_allow_html=True,
@@ -329,10 +333,10 @@ with st.sidebar:
 
     st.divider()
 
-    # ── Import from Excel ─────────────────────────────────────────────────────
-    st.header("Import Excel")
-    st.caption("Load an existing volume_calculator.xlsx to fill the form.")
-    uploaded = st.file_uploader("Choose file", type=["xlsx"],
+    # ── Import from Excel / JSON ──────────────────────────────────────────────
+    st.header("Import")
+    st.caption("Excel — load an existing volume_calculator.xlsx to fill the form.")
+    uploaded = st.file_uploader("Choose Excel file", type=["xlsx"],
                                 label_visibility="collapsed")
     if uploaded and uploaded.file_id != st.session_state.last_imported_file_id:
         try:
@@ -345,6 +349,21 @@ with st.sidebar:
             st.rerun()
         except Exception as exc:
             st.error(f"Import failed: {exc}")
+
+    st.caption("JSON — load a previously exported junc_data.json.")
+    uploaded_json = st.file_uploader("Choose JSON file", type=["json"],
+                                     label_visibility="collapsed")
+    if uploaded_json and uploaded_json.file_id != st.session_state.last_imported_json_id:
+        try:
+            new_state = json.loads(uploaded_json.read().decode("utf-8"))
+            st.session_state.junc_state = new_state
+            state = new_state
+            st.session_state.editor_version += 1
+            st.session_state.last_imported_json_id = uploaded_json.file_id
+            st.session_state.auto_run = True
+            st.rerun()
+        except Exception as exc:
+            st.error(f"JSON import failed: {exc}")
 
     st.divider()
 
@@ -396,6 +415,35 @@ with st.sidebar:
         if _log.strip():
             with st.expander("Analysis log"):
                 st.code(_log, language="")
+
+    st.divider()
+
+    # ── Export current data ───────────────────────────────────────────────────
+    st.header("Export")
+    st.caption("Save the current form data as a file.")
+
+    if st.session_state.excel_template:
+        _xl_export = create_excel_from_state(state, st.session_state.excel_template)
+        st.download_button(
+            "⬇ Export as Excel",
+            _xl_export,
+            "volume_calculator_export.xlsx",
+            XLSX_MIME,
+            use_container_width=True,
+            help="Download the current form data as a filled volume_calculator.xlsx",
+        )
+    else:
+        st.caption("Excel export unavailable (template not found).")
+
+    _json_bytes = json.dumps(state, ensure_ascii=False, indent=2).encode("utf-8")
+    st.download_button(
+        "⬇ Export as JSON",
+        _json_bytes,
+        "junc_data.json",
+        "application/json",
+        use_container_width=True,
+        help="Download the current form data as JSON",
+    )
 
 
 # ---------------------------------------------------------------------------
