@@ -523,57 +523,63 @@ with col_inputs:
 
     # ── Volumes tab ───────────────────────────────────────────────────────────
     with tab_vol:
-        st.markdown("**Morning (AM)** — vehicles per hour")
-        _ni_header()
-        for m in MOVEMENTS:
-            _ni_row("am", m, _MOVE_LABELS[m], state["volumes"]["morning"], ver)
+        with st.form("form_vol"):
+            st.markdown("**Morning (AM)** — vehicles per hour")
+            _ni_header()
+            for m in MOVEMENTS:
+                _ni_row("am", m, _MOVE_LABELS[m], state["volumes"]["morning"], ver)
 
-        st.divider()
+            st.divider()
 
-        st.markdown("**Evening (PM)** — vehicles per hour")
-        _ni_header()
-        for m in MOVEMENTS:
-            _ni_row("pm", m, _MOVE_LABELS[m], state["volumes"]["evening"], ver)
+            st.markdown("**Evening (PM)** — vehicles per hour")
+            _ni_header()
+            for m in MOVEMENTS:
+                _ni_row("pm", m, _MOVE_LABELS[m], state["volumes"]["evening"], ver)
 
-        st.caption("R = right turn · T = through · L = left turn")
+            st.caption("R = right turn · T = through · L = left turn")
+            st.form_submit_button("✓ Apply Volumes", use_container_width=True, type="primary")
 
     # ── Lanes tab ─────────────────────────────────────────────────────────────
     with tab_lanes:
-        st.markdown(
-            "**Lane configuration** — enter number of lanes per type. "
-            "Shared lanes (e.g. RT = right + through) count once."
-        )
-        _ni_header()
-        for lt in LANE_TYPES:
-            _ni_row("lanes", lt, _LANE_LABELS[lt], state["lanes"], ver)
+        with st.form("form_lanes"):
+            st.markdown(
+                "**Lane configuration** — enter number of lanes per type. "
+                "Shared lanes (e.g. RT = right + through) count once."
+            )
+            _ni_header()
+            for lt in LANE_TYPES:
+                _ni_row("lanes", lt, _LANE_LABELS[lt], state["lanes"], ver)
 
-        st.caption(
-            "R · RT · T · TL · L = dedicated lanes | "
-            "RTL = shared right+through+left | RL = shared right+left"
-        )
+            st.caption(
+                "R · RT · T · TL · L = dedicated lanes | "
+                "RTL = shared right+through+left | RL = shared right+left"
+            )
+            st.form_submit_button("✓ Apply Lanes", use_container_width=True, type="primary")
 
     # ── Nataz tab ─────────────────────────────────────────────────────────────
     with tab_nataz:
-        st.markdown("**Nataz (נת״צ) — Public Transit Lane Designations**")
-        st.caption(
-            "Enter the number of dedicated bus lanes for each simple lane type (R / T / L). "
-            "For complex lanes (RT, TL, RL, RTL), enter a code indicating which movement "
-            "within that lane is designated for public transit:\n\n"
-            "| Code | Movement |\n"
-            "|------|----------|\n"
-            "| `1`  | Entire lane (all movements) |\n"
-            "| `2`  | Right only |\n"
-            "| `3`  | Through only |\n"
-            "| `4`  | Left only |\n"
-            "| `5`  | Right + Through |\n"
-            "| `6`  | Right + Left |\n"
-            "| `7`  | Through + Left |\n\n"
-            "Nataz designations are shown in the output PowerPoint. "
-            "Bus-only movements are also excluded from private-car routing."
-        )
-        _ni_header()
-        for lt in LANE_TYPES:
-            _ni_row("nataz", lt, _LANE_LABELS[lt], state["nataz"], ver)
+        with st.form("form_nataz"):
+            st.markdown("**Nataz (נת״צ) — Public Transit Lane Designations**")
+            st.caption(
+                "Enter the number of dedicated bus lanes for each simple lane type (R / T / L). "
+                "For complex lanes (RT, TL, RL, RTL), enter a code indicating which movement "
+                "within that lane is designated for public transit:\n\n"
+                "| Code | Movement |\n"
+                "|------|----------|\n"
+                "| `1`  | Entire lane (all movements) |\n"
+                "| `2`  | Right only |\n"
+                "| `3`  | Through only |\n"
+                "| `4`  | Left only |\n"
+                "| `5`  | Right + Through |\n"
+                "| `6`  | Right + Left |\n"
+                "| `7`  | Through + Left |\n\n"
+                "Nataz designations are shown in the output PowerPoint. "
+                "Bus-only movements are also excluded from private-car routing."
+            )
+            _ni_header()
+            for lt in LANE_TYPES:
+                _ni_row("nataz", lt, _LANE_LABELS[lt], state["nataz"], ver)
+            st.form_submit_button("✓ Apply Nataz", use_container_width=True, type="primary")
 
     # ── Settings tab ─────────────────────────────────────────────────────────
     with tab_settings:
