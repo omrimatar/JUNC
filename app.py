@@ -204,23 +204,33 @@ ver   = st.session_state.editor_version
 
 
 # ---------------------------------------------------------------------------
-# Helper: data-editor that writes back into *state* automatically
+# Helper: number-input grid (replaces st.data_editor for reliable state)
 # ---------------------------------------------------------------------------
 
-def _make_vol_df(period: str) -> pd.DataFrame:
-    return pd.DataFrame(
-        {d: {_MOVE_LABELS[m]: int(state["volumes"][period][d][m]) for m in MOVEMENTS}
-         for d in DIRECTIONS},
-    )
+def _ni_header() -> None:
+    """Direction header row: blank label col + N S E W."""
+    cols = st.columns([3, 1, 1, 1, 1])
+    for ci, d in enumerate(DIRECTIONS, start=1):
+        cols[ci].markdown(
+            f"<div style='text-align:center;font-weight:700'>{_DIR_LABELS[d]}</div>",
+            unsafe_allow_html=True,
+        )
 
-def _make_lane_df(key: str) -> pd.DataFrame:
-    return pd.DataFrame(
-        {d: {_LANE_LABELS[lt]: int(state[key][d][lt]) for lt in LANE_TYPES}
-         for d in DIRECTIONS},
-    )
 
-def _int_col_cfg(label: str):
-    return st.column_config.NumberColumn(label, min_value=0, step=1, format="%d")
+def _ni_row(table_key: str, row_key: str, row_label: str,
+            source: dict, ver: int) -> None:
+    """One data row: label + one st.number_input per direction, writes to source."""
+    cols = st.columns([3, 1, 1, 1, 1])
+    cols[0].caption(row_label)
+    for ci, d in enumerate(DIRECTIONS, start=1):
+        v = cols[ci].number_input(
+            "v",
+            value=int(source[d][row_key]),
+            min_value=0, step=1, format="%d",
+            key=f"ni_{table_key}_{d}_{row_key}_{ver}",
+            label_visibility="collapsed",
+        )
+        source[d][row_key] = int(v)
 
 
 # ---------------------------------------------------------------------------
@@ -511,35 +521,19 @@ with col_inputs:
         ["🚗 Volumes", "🛣 Lanes", "🚌 Nataz", "⚙ Settings"]
     )
 
-    col_cfg = {d: _int_col_cfg(_DIR_LABELS[d]) for d in DIRECTIONS}
-
     # ── Volumes tab ───────────────────────────────────────────────────────────
     with tab_vol:
         st.markdown("**Morning (AM)** — vehicles per hour")
-        am_df = _make_vol_df("morning")
-        edited_am = st.data_editor(
-            am_df, key=f"am_{ver}",
-            column_config=col_cfg,
-            use_container_width=True,
-        )
-        for d in DIRECTIONS:
-            for m in MOVEMENTS:
-                val = edited_am.at[_MOVE_LABELS[m], d]
-                state["volumes"]["morning"][d][m] = 0 if pd.isna(val) else int(val)
+        _ni_header()
+        for m in MOVEMENTS:
+            _ni_row("am", m, _MOVE_LABELS[m], state["volumes"]["morning"], ver)
 
         st.divider()
 
         st.markdown("**Evening (PM)** — vehicles per hour")
-        pm_df = _make_vol_df("evening")
-        edited_pm = st.data_editor(
-            pm_df, key=f"pm_{ver}",
-            column_config=col_cfg,
-            use_container_width=True,
-        )
-        for d in DIRECTIONS:
-            for m in MOVEMENTS:
-                val = edited_pm.at[_MOVE_LABELS[m], d]
-                state["volumes"]["evening"][d][m] = 0 if pd.isna(val) else int(val)
+        _ni_header()
+        for m in MOVEMENTS:
+            _ni_row("pm", m, _MOVE_LABELS[m], state["volumes"]["evening"], ver)
 
         st.caption("R = right turn · T = through · L = left turn")
 
@@ -549,16 +543,9 @@ with col_inputs:
             "**Lane configuration** — enter number of lanes per type. "
             "Shared lanes (e.g. RT = right + through) count once."
         )
-        lane_df = _make_lane_df("lanes")
-        edited_lanes = st.data_editor(
-            lane_df, key=f"lanes_{ver}",
-            column_config=col_cfg,
-            use_container_width=True,
-        )
-        for d in DIRECTIONS:
-            for lt in LANE_TYPES:
-                val = edited_lanes.at[_LANE_LABELS[lt], d]
-                state["lanes"][d][lt] = 0 if pd.isna(val) else int(val)
+        _ni_header()
+        for lt in LANE_TYPES:
+            _ni_row("lanes", lt, _LANE_LABELS[lt], state["lanes"], ver)
 
         st.caption(
             "R · RT · T · TL · L = dedicated lanes | "
@@ -584,16 +571,9 @@ with col_inputs:
             "Nataz designations are shown in the output PowerPoint. "
             "Bus-only movements are also excluded from private-car routing."
         )
-        nataz_df = _make_lane_df("nataz")
-        edited_nataz = st.data_editor(
-            nataz_df, key=f"nataz_{ver}",
-            column_config=col_cfg,
-            use_container_width=True,
-        )
-        for d in DIRECTIONS:
-            for lt in LANE_TYPES:
-                val = edited_nataz.at[_LANE_LABELS[lt], d]
-                state["nataz"][d][lt] = 0 if pd.isna(val) else int(val)
+        _ni_header()
+        for lt in LANE_TYPES:
+            _ni_row("nataz", lt, _LANE_LABELS[lt], state["nataz"], ver)
 
     # ── Settings tab ─────────────────────────────────────────────────────────
     with tab_settings:
