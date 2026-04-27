@@ -187,6 +187,9 @@ if "last_imported_file_id" not in st.session_state:
 if "last_imported_json_id" not in st.session_state:
     st.session_state.last_imported_json_id = None
 
+if "export_excel_bytes" not in st.session_state:
+    st.session_state.export_excel_bytes = None
+
 if "full_zip" not in st.session_state:
     st.session_state.full_zip = None
 
@@ -337,7 +340,7 @@ with st.sidebar:
     st.header("Import")
     st.caption("Excel — load an existing volume_calculator.xlsx to fill the form.")
     uploaded = st.file_uploader("Choose Excel file", type=["xlsx"],
-                                label_visibility="collapsed")
+                                label_visibility="collapsed", key="excel_uploader")
     if uploaded and uploaded.file_id != st.session_state.last_imported_file_id:
         try:
             new_state = read_excel_to_state(uploaded.read())
@@ -345,6 +348,7 @@ with st.sidebar:
             state = new_state
             st.session_state.editor_version += 1
             st.session_state.last_imported_file_id = uploaded.file_id
+            st.session_state.export_excel_bytes = None
             st.session_state.auto_run = True
             st.rerun()
         except Exception as exc:
@@ -352,7 +356,7 @@ with st.sidebar:
 
     st.caption("JSON — load a previously exported junc_data.json.")
     uploaded_json = st.file_uploader("Choose JSON file", type=["json"],
-                                     label_visibility="collapsed")
+                                     label_visibility="collapsed", key="json_uploader")
     if uploaded_json and uploaded_json.file_id != st.session_state.last_imported_json_id:
         try:
             new_state = json.loads(uploaded_json.read().decode("utf-8"))
@@ -360,6 +364,7 @@ with st.sidebar:
             state = new_state
             st.session_state.editor_version += 1
             st.session_state.last_imported_json_id = uploaded_json.file_id
+            st.session_state.export_excel_bytes = None
             st.session_state.auto_run = True
             st.rerun()
         except Exception as exc:
@@ -423,15 +428,26 @@ with st.sidebar:
     st.caption("Save the current form data as a file.")
 
     if st.session_state.excel_template:
-        _xl_export = create_excel_from_state(state, st.session_state.excel_template)
-        st.download_button(
-            "⬇ Export as Excel",
-            _xl_export,
-            "volume_calculator_export.xlsx",
-            XLSX_MIME,
-            use_container_width=True,
-            help="Download the current form data as a filled volume_calculator.xlsx",
-        )
+        if st.session_state.export_excel_bytes is None:
+            if st.button("📋 Prepare Excel Export", use_container_width=True,
+                         help="Generate a filled volume_calculator.xlsx from the current data"):
+                with st.spinner("Generating…"):
+                    st.session_state.export_excel_bytes = create_excel_from_state(
+                        state, st.session_state.excel_template
+                    )
+                st.rerun()
+        else:
+            st.download_button(
+                "⬇ Download Excel",
+                st.session_state.export_excel_bytes,
+                "volume_calculator_export.xlsx",
+                XLSX_MIME,
+                use_container_width=True,
+            )
+            if st.button("🔄 Re-prepare Excel Export", use_container_width=True,
+                         help="Regenerate after making changes"):
+                st.session_state.export_excel_bytes = None
+                st.rerun()
     else:
         st.caption("Excel export unavailable (template not found).")
 
